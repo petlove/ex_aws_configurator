@@ -1,0 +1,36 @@
+CommitMsg:
+  CapitalizedSubject:
+    enabled: false
+  CommonCommit:
+    enabled: true
+    quiet: false
+    description: 'Checks commit specs'
+    required_executable: 'apps/whale_web/assets/node_modules/.bin/commitlint'
+    command: ['apps/whale_web/assets/node_modules/.bin/commitlint']
+    flags: ['-e', '-g', 'apps/whale_web/assets/commitlint.config.js']
+
+PreCommit:
+  Credo:
+    enabled: true
+    on_warn: fail
+  TrailingWhitespace:
+    enabled: true
+  HardTabs:
+    enabled: true
+    on_warn: fail
+
+PostCommit:
+  SubmoduleStatus:
+    enabled: true
+
+PostCheckout:
+  SubmoduleStatus:
+    enabled: true
+
+PostMerge:
+  SubmoduleStatus:
+    enabled: true
+
+PostRewrite:
+  SubmoduleStatus:
+    enabled: true

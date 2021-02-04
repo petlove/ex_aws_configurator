@@ -1,0 +1,53 @@
+{
+  "branches": [
+    "master"
+  ],
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits",
+        "parserOpts": {
+          "noteKeywords": [ "BREAKING CHANGE", "BREAKING CHANGES", "BREAKING" ]
+        }
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits",
+        "parserOpts": {
+          "noteKeywords": [ "BREAKING CHANGE", "BREAKING CHANGES", "BREAKING" ]
+        },
+        "writerOpts": {
+          "commitsSort": [ "subject", "scope" ]
+        }
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        releasedLabels: false,
+        successComment: false
+      }
+    ],
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogTitle": "# CHANGELOG",
+        "changelogFile": "CHANGELOG.md"
+      }
+    ],
+    [
+      "@semantic-release/exec", {
+        "prepareCmd": "echo \"${nextRelease.version}\" > VERSION && mix do deps.get, docs"
+      }
+    ],
+    [
+      "@semantic-release/git", {
+        "assets": ['VERSION', 'CHANGELOG.md'],
+        "message": "chore(release): bump ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ]
+  ]
+}
