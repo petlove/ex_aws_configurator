@@ -67,15 +67,14 @@ jobs:
     - name: Dialyzer
       run: mix dialyzer --halt-exit-status
 
-    - name: Determine the tag version
-      env:
-        GITHUB_REF: ${{ github.ref }}
-      run: echo "TAG=$(echo "$GITHUB_REF" | awk -F / '{print $3}')" >> $GITHUB_ENV
-      if: startsWith(github.ref, 'refs/tags/v')
+    - name: Versioning
+      run: |
+        mix deps.get
+        npm install
+        npx semantic-release
 
     - name: Publish library
       run: mix hex.publish --yes
-      if: startsWith(github.ref, 'refs/tags/v')
       env:
         MIX_ENV: dev
         HEX_API_KEY: ${{ secrets.HEX_PUBLISH_KEY }}
