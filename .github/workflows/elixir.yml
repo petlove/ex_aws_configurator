@@ -64,6 +64,9 @@ jobs:
     - name: Tests
       run: mix test
 
+    - name: Dialyzer
+      run: mix dialyzer --halt-exit-status
+
     - name: Determine the tag version
       env:
         GITHUB_REF: ${{ github.ref }}
