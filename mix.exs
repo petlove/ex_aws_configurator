@@ -19,9 +19,8 @@ defmodule ExAwsConfigurator.MixProject do
       ],
       deps: deps(),
       package: package(),
-      hex: hex(),
       name: "ExAwsConfigurator",
-      description: "Some description",
+      description: "A json based SNS/SQS configurator for elixir/phoenix projects",
       source_url: "https://github.com/marciotoze/ex_aws_configurator",
       elixirc_paths: elixirc_paths(Mix.env()),
       docs: [
@@ -74,15 +73,10 @@ defmodule ExAwsConfigurator.MixProject do
 
   defp package do
     [
-      licenses: ["Apache-2.0"],
-      links: %{}
-    ]
-  end
-
-  defp hex do
-    [
-      api_url: "http://localhost:4000/api/repos/test_repo",
-      api_key: "secret"
+      name: :ex_aws_configurator,
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/marciotoze/ex_aws_configurator"},
+      files: ~w(lib .formatter.exs mix.exs README* LICENSE* CHANGELOG*)
     ]
   end
 end
