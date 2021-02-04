@@ -1,6 +1,7 @@
 {
   "branches": [
-    "master"
+    "master",
+    "main"
   ],
   "plugins": [
     [
@@ -40,7 +41,7 @@
     ],
     [
       "@semantic-release/exec", {
-        "prepareCmd": "echo \"${nextRelease.version}\" > VERSION && mix do deps.get, docs"
+        "prepareCmd": "echo \"${nextRelease.version}\" > VERSION"
       }
     ],
     [
