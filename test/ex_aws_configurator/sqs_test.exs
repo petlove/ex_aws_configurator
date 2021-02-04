@@ -68,6 +68,8 @@ defmodule ExAwsConfigurator.SQSTest do
     test "send an message to an existent queue" do
       add_queue_to_config(build(:queue_config, name: :queue_name))
 
+      SQS.create_queue(:queue_name)
+
       assert {:ok, %{status_code: 200}} = SQS.send_message(:queue_name, "message")
     end
 

@@ -33,6 +33,8 @@ defmodule ExAwsConfigurator.SNSTest do
     test "public an message to an existent topic" do
       add_topic_to_config(build(:topic_config, name: :topic_name))
 
+      SNS.create_topic(:topic_name)
+
       assert {:ok, %{status_code: 200}} = SNS.publish(:topic_name, "message")
     end
 

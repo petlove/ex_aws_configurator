@@ -31,7 +31,7 @@ defmodule ExAwsConfigurator.QueueTest do
 
   describe "url/1" do
     test "build url from queue", %{queue: queue} do
-      assert "http://localhost/000000000000/pref_env_topic" = Queue.url(queue)
+      assert Queue.url(queue) =~ "000000000000/pref_env_topic"
     end
   end
 end

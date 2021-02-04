@@ -1,8 +1,8 @@
 defmodule ExAwsConfigurator.SNS do
   require Logger
 
-  alias ExAwsConfigurator.Topic
   alias ExAws.SNS
+  alias ExAwsConfigurator.Topic
 
   @doc """
   Create an sns topic, based on ex_aws_configurator configuration
