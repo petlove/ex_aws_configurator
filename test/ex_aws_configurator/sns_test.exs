@@ -9,7 +9,9 @@ defmodule ExAwsConfigurator.SNSTest do
 
   setup do
     add_topic_to_config(build(:topic_config, name: :topic_name))
+    add_topic_to_config(%{topic_min_config: %{}})
 
+    SNS.create_topic(:topic_min_config)
     SNS.create_topic(:topic_name)
 
     add_topic_to_config(build(:topic_config, name: :non_created_topic))
@@ -18,6 +20,10 @@ defmodule ExAwsConfigurator.SNSTest do
   describe "create_topic/1" do
     test "create topic when receive a atom with correct configuration" do
       assert {:ok, %{status_code: 200}} = SNS.create_topic(:topic_name)
+    end
+
+    test "create topic with min attributes" do
+      assert {:ok, %{status_code: 200}} = SNS.create_topic(:topic_min_config)
     end
 
     test "create topic when receive a Topic with correct configuration" do

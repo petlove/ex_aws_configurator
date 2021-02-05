@@ -10,7 +10,7 @@ defmodule ExAwsConfigurator.Topic do
 
   defstruct name: nil,
             environment: Mix.env(),
-            region: nil,
+            region: ExAws.Config.new(:sns).region,
             prefix: nil
 
   @doc false

@@ -32,6 +32,6 @@ config :ex_aws_configurator,
     }
   },
   topics: %{
-    an_topic: %{environment: "test", prefix: "prefix", region: "us-east-1"},
+    an_topic: %{environment: nil},
     another_topic: %{environment: "teste", prefix: "prefixo", region: "sa-east-1"}
   }

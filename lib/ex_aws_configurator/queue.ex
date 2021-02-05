@@ -12,7 +12,7 @@ defmodule ExAwsConfigurator.Queue do
 
   defstruct name: nil,
             environment: Mix.env(),
-            region: nil,
+            region: ExAws.Config.new(:sqs).region,
             prefix: nil,
             attributes: [
               fifo_queue: false,

@@ -9,8 +9,10 @@ defmodule ExAwsConfigurator.SQSTest do
 
   setup do
     add_queue_to_config(build(:queue_config, name: :queue_name))
+    add_queue_to_config(%{queue_min_config: %{}})
     add_topic_to_config(build(:topic_config, name: :topic_name))
 
+    SQS.create_queue(:queue_min_config)
     SQS.create_queue(:queue_name)
     SNS.create_topic(:topic_name)
 
@@ -20,6 +22,10 @@ defmodule ExAwsConfigurator.SQSTest do
   describe "create_queue/1" do
     test "create queue when receive a atom with correct configuration" do
       assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_name)
+    end
+
+    test "create queue with min attributes" do
+      assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_min_config)
     end
 
     test "create queue when receive a struct with correct configuration" do
