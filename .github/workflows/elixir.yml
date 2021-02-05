@@ -4,6 +4,9 @@ on:
   push:
     branches: [ main ]
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   build:
 
@@ -17,6 +20,12 @@ jobs:
           - 4566:4566
         env:
           SERVICES: sns,sqs
+          DEBUG: ""
+          DATA_DIR: ""
+          LAMBDA_EXECUTOR: ""
+          KINESIS_ERROR_PROBABILITY: ""
+          DOCKER_HOST: unix:///var/run/docker.sock
+          HOST_TMP_FOLDER: "/tmp"
 
     steps:
     - uses: actions/checkout@v2
@@ -52,20 +61,17 @@ jobs:
     - name: Compile
       run: mix compile --warnings-as-errors --force
 
-    - name: Coveralls
-      run: mix coveralls
+    # - name: Check formatting
+    #   run: mix format --check-formatted
 
-    - name: Check formatting
-      run: mix format --check-formatted
+    # - name: Credo
+    #   run: mix credo
 
-    - name: Credo
-      run: mix credo
+    # - name: Coveralls
+    #   run: mix coveralls
 
-    - name: Tests
-      run: mix test
-
-    - name: Dialyzer
-      run: mix dialyzer --halt-exit-status
+    # - name: Dialyzer
+    #   run: mix dialyzer --halt-exit-status
 
     - name: Versioning
       run: |

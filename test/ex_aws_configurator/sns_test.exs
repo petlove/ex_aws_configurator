@@ -1,5 +1,5 @@
 defmodule ExAwsConfigurator.SNSTest do
-  use ExAwsConfigurator.Case, async: true
+  use ExAwsConfigurator.Case
 
   alias ExAwsConfigurator.SNS
 
@@ -7,16 +7,20 @@ defmodule ExAwsConfigurator.SNSTest do
 
   @moduletag capture_log: true
 
+  setup do
+    add_topic_to_config(build(:topic_config, name: :topic_name))
+
+    SNS.create_topic(:topic_name)
+
+    add_topic_to_config(build(:topic_config, name: :non_created_topic))
+  end
+
   describe "create_topic/1" do
     test "create topic when receive a atom with correct configuration" do
-      add_topic_to_config(build(:topic_config, name: :topic_name))
-
       assert {:ok, %{status_code: 200}} = SNS.create_topic(:topic_name)
     end
 
     test "create topic when receive a Topic with correct configuration" do
-      add_topic_to_config(build(:topic_config, name: :topic_name))
-
       topic = ExAwsConfigurator.get_topic(:topic_name)
 
       assert {:ok, %{status_code: 200}} = SNS.create_topic(topic)
@@ -31,17 +35,13 @@ defmodule ExAwsConfigurator.SNSTest do
 
   describe "publish/2" do
     test "public an message to an existent topic" do
-      add_topic_to_config(build(:topic_config, name: :topic_name))
-
       SNS.create_topic(:topic_name)
 
       assert {:ok, %{status_code: 200}} = SNS.publish(:topic_name, "message")
     end
 
     test "public an message to an non existent topic" do
-      add_topic_to_config(build(:topic_config, name: :non_created))
-
-      assert {:error, {:http_error, 404, _}} = SNS.publish(:non_created, "message")
+      assert {:error, {:http_error, 404, _}} = SNS.publish(:non_created_topic, "message")
     end
 
     test "raise when tries to publish into an no configured topic" do

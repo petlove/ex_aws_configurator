@@ -9,9 +9,3 @@ services:
       - "4571:4571"
     environment:
       - SERVICES=sns,sqs
-      - DATA_DIR=/tmp/localstack/data
-    volumes:
-      - localstack:/tmp/localstack
-
-volumes:
-  localstack:
