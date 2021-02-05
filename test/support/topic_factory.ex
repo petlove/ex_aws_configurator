@@ -7,10 +7,10 @@ defmodule ExAwsConfigurator.Factory.Topic do
     quote do
       def topic_factory do
         %Topic{
-          name: "queue_name",
-          environment: "queue_env",
-          region: "queue_region",
-          prefix: "queue_prefix"
+          name: "topic_name",
+          environment: "topic_env",
+          region: "topic_region",
+          prefix: "topic_prefix"
         }
       end
     end
