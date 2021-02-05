@@ -1,5 +1,5 @@
 defmodule ExAwsConfigurator.QueueTest do
-  use ExAwsConfigurator.Case, async: true
+  use ExAwsConfigurator.Case
 
   alias ExAwsConfigurator.Queue
 

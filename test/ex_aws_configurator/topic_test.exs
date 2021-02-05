@@ -1,5 +1,5 @@
 defmodule ExAwsConfigurator.TopicTest do
-  use ExAwsConfigurator.Case, async: true
+  use ExAwsConfigurator.Case
 
   alias ExAwsConfigurator.Topic
 

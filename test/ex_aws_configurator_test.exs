@@ -1,5 +1,5 @@
 defmodule ExAwsConfiguratorTest do
-  use ExAwsConfigurator.Case, async: true
+  use ExAwsConfigurator.Case
 
   alias ExAwsConfigurator.{Queue, Topic}
 
@@ -48,6 +48,8 @@ defmodule ExAwsConfiguratorTest do
       Application.put_all_env([{:ex_aws_configurator, [account_id: {:system, "ACCOUNT_ID"}]}])
 
       assert "123456789101" = ExAwsConfigurator.get_env(:account_id)
+
+      Application.put_all_env([{:ex_aws_configurator, [account_id: "000000000000"]}])
     end
 
     test "raise specific error when config do not exist" do
