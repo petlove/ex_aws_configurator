@@ -1,6 +1,7 @@
 # ExAwsConfigurator
 
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/marciotoze/ex_aws_configurator/Elixir%20CI)
+[![Coverage Status](https://coveralls.io/repos/github/marciotoze/ex_aws_configurator/badge.svg?branch=main)](https://coveralls.io/github/marciotoze/ex_aws_configurator?branch=main)
 [![hex.pm](https://img.shields.io/hexpm/v/ex_aws_configurator.svg)](https://hex.pm/packages/ex_aws)
 [![hex.pm](https://img.shields.io/hexpm/dt/ex_aws_configurator.svg)](https://hex.pm/packages/ex_aws)
 [![hex.pm](https://img.shields.io/hexpm/l/ex_aws_configurator.svg)](https://hex.pm/packages/ex_aws)
