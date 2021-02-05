@@ -75,7 +75,7 @@ defmodule ExAwsConfigurator.MixProject do
       name: :ex_aws_configurator,
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/marciotoze/ex_aws_configurator"},
-      files: ~w(lib .formatter.exs mix.exs README* LICENSE* CHANGELOG*)
+      files: ~w(lib .formatter.exs mix.exs README* LICENSE* CHANGELOG* VERSION*)
     ]
   end
 end
