@@ -1,27 +1,34 @@
 defmodule ExAwsConfigurator.Queue do
   alias ExAwsConfigurator.Topic
 
+  @type queue_options :: [
+          dead_letter_queue: boolean(),
+          dead_letter_queue_suffix: binary()
+        ]
+
   @type t :: %__MODULE__{
           name: binary(),
           region: binary(),
           environment: binary(),
           prefix: binary(),
           attributes: ExAws.SQS.queue_attributes(),
+          options: queue_options(),
           topics: [Topic]
         }
 
   defstruct name: nil,
             environment: Mix.env(),
-            region: nil,
+            region: System.get_env("AWS_REGION"),
             prefix: nil,
             attributes: [
               fifo_queue: false,
               content_based_deduplication: false,
-              max_receive_count: 7,
-              dead_letter_queue: false,
-              dead_letter_queue_suffix: "_failures",
               visibility_timeout: 60,
               message_retention_period: 1_209_600
+            ],
+            options: [
+              dead_letter_queue: false,
+              dead_letter_queue_suffix: "_failures"
             ],
             topics: []
 
@@ -29,14 +36,16 @@ defmodule ExAwsConfigurator.Queue do
   @policy_effect 'Allow'
   @policy_action 'SQS:SendMessage'
 
-  @doc false
+  @doc "get queue full name, its a composition of `prefix + environment + queue.name`"
+  @spec full_name(Queue.t()) :: String.t()
   def full_name(%__MODULE__{} = queue) do
     [queue.prefix, queue.environment, queue.name]
     |> Enum.filter(&(!is_nil(&1)))
     |> Enum.join("_")
   end
 
-  @doc false
+  @doc "get queue url"
+  @spec url(Queue.t()) :: String.t()
   def url(%__MODULE__{} = queue) do
     %{scheme: scheme, host: host} = ExAws.Config.new(:sqs)
 
@@ -44,13 +53,15 @@ defmodule ExAwsConfigurator.Queue do
     |> Enum.join("/")
   end
 
-  @doc false
+  @doc "get queue arn"
+  @spec arn(Queue.t()) :: String.t()
   def arn(%__MODULE__{} = queue) do
     ["arn:aws:sqs", queue.region, ExAwsConfigurator.get_env(:account_id), full_name(queue)]
     |> Enum.join(":")
   end
 
   @doc false
+  @spec policy(Queue.t()) :: String.t()
   def policy(%__MODULE__{} = queue) do
     arn = arn(queue)
 
