@@ -57,16 +57,13 @@ defmodule ExAwsConfigurator.SQS do
   def create_queue(%Queue{} = queue, tags) when is_map(tags) do
     full_name = Queue.full_name(queue)
 
-    queue = %{queue | attributes: Keyword.put_new(queue.attributes, :policy, Queue.policy(queue))}
-    region = Queue.region(queue)
-
     Logger.info(
-      "Creating queue #{full_name} on #{region} with attributes #{inspect(queue.attributes)}"
+      "Creating queue #{full_name} on #{queue.region} with attributes #{inspect(queue.attributes)}"
     )
 
     full_name
     |> SQS.create_queue(queue.attributes, tags)
-    |> ExAws.request(region: region)
+    |> ExAws.request(region: queue.region)
   end
 
   @doc """
@@ -146,6 +143,6 @@ defmodule ExAwsConfigurator.SQS do
     queue
     |> Queue.url()
     |> SQS.send_message(message, opts)
-    |> ExAws.request(region: Queue.region(queue))
+    |> ExAws.request(region: queue.region)
   end
 end

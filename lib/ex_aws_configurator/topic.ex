@@ -10,24 +10,21 @@ defmodule ExAwsConfigurator.Topic do
 
   defstruct name: nil,
             environment: Mix.env(),
-            region: nil,
+            region: System.get_env("AWS_REGION"),
             prefix: nil
 
-  @doc false
-  def arn(%__MODULE__{} = queue) do
-    ["arn:aws:sns", queue.region, ExAwsConfigurator.get_env(:account_id), full_name(queue)]
+  @doc "get topic arn"
+  @spec arn(Topic.t()) :: String.t()
+  def arn(%__MODULE__{} = topic) do
+    ["arn:aws:sns", topic.region, ExAwsConfigurator.get_env(:account_id), full_name(topic)]
     |> Enum.join(":")
   end
 
-  @doc false
+  @doc "get topic full name, its a composition of `prefix + environment + topic.name`"
+  @spec full_name(Topic.t()) :: String.t()
   def full_name(%__MODULE__{} = topic) do
     [topic.prefix, topic.environment, topic.name]
     |> Enum.filter(&(!is_nil(&1)))
     |> Enum.join("_")
-  end
-
-  @doc false
-  def region(%__MODULE__{} = topic) do
-    topic.region || ExAws.Config.new(:sns).region
   end
 end
