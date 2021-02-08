@@ -1,5 +1,12 @@
 # CHANGELOG
 
+### [1.0.3](https://github.com/marciotoze/ex_aws_configurator/compare/v1.0.2...v1.0.3) (2021-02-08)
+
+
+### Bug Fixes
+
+* get ExAws default region in exec time ([c82f932](https://github.com/marciotoze/ex_aws_configurator/commit/c82f932113a399f414988199cbac2934fdabe98a))
+
 ### [1.0.2](https://github.com/marciotoze/ex_aws_configurator/compare/v1.0.1...v1.0.2) (2021-02-05)
 
 
