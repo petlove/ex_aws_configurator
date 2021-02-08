@@ -22,6 +22,7 @@ config :ex_aws_configurator,
       environment: "test",
       prefix: "prefix",
       region: "us-east-1",
+      options: [dead_letter_queue: true],
       topics: [:an_topic, :another_topic]
     },
     xxx: %{

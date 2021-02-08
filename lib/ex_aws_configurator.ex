@@ -46,8 +46,13 @@ defmodule ExAwsConfigurator do
     case Map.fetch(get_env(:queues), queue_name) do
       {:ok, value} ->
         queue = struct(%Queue{name: queue_name}, value)
+        queue = struct(queue, %{topics: Enum.map(queue.topics, &get_topic/1)})
 
-        struct(queue, %{topics: Enum.map(queue.topics, &get_topic/1)})
+        attributes = Keyword.put_new(queue.attributes, :policy, Queue.policy(queue))
+
+        queue
+        |> struct(%{options: Keyword.merge(%Queue{}.options, queue.options)})
+        |> struct(%{attributes: Keyword.merge(%Queue{}.attributes, attributes)})
 
       :error ->
         raise ExAwsConfigurator.NoResultsError, type: :queue, name: queue_name
