@@ -12,7 +12,7 @@ defmodule ExAwsConfigurator.Queue do
 
   defstruct name: nil,
             environment: Mix.env(),
-            region: ExAws.Config.new(:sqs).region,
+            region: nil,
             prefix: nil,
             attributes: [
               fifo_queue: false,
@@ -78,5 +78,10 @@ defmodule ExAwsConfigurator.Queue do
       ]
     }
     |> Jason.encode!()
+  end
+
+  @doc false
+  def region(%__MODULE__{} = queue) do
+    queue.region || ExAws.Config.new(:sqs).region
   end
 end

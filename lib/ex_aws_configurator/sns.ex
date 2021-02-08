@@ -45,12 +45,13 @@ defmodule ExAwsConfigurator.SNS do
   @spec create_topic(Topic.t()) :: {:ok, term} | {:error, term}
   def create_topic(%Topic{} = topic) do
     full_name = Topic.full_name(topic)
+    region = Topic.region(topic)
 
-    Logger.info("Creating topic #{full_name} on #{topic.region}")
+    Logger.info("Creating topic #{full_name} on #{region}")
 
     full_name
     |> SNS.create_topic()
-    |> ExAws.request(region: topic.region)
+    |> ExAws.request(region: region)
   end
 
   @doc """
@@ -70,6 +71,6 @@ defmodule ExAwsConfigurator.SNS do
     message
     |> Jason.encode!()
     |> SNS.publish(topic_arn: Topic.arn(topic))
-    |> ExAws.request(region: topic.region)
+    |> ExAws.request(region: Topic.region(topic))
   end
 end

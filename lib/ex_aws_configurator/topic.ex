@@ -10,7 +10,7 @@ defmodule ExAwsConfigurator.Topic do
 
   defstruct name: nil,
             environment: Mix.env(),
-            region: ExAws.Config.new(:sns).region,
+            region: nil,
             prefix: nil
 
   @doc false
@@ -24,5 +24,10 @@ defmodule ExAwsConfigurator.Topic do
     [topic.prefix, topic.environment, topic.name]
     |> Enum.filter(&(!is_nil(&1)))
     |> Enum.join("_")
+  end
+
+  @doc false
+  def region(%__MODULE__{} = topic) do
+    topic.region || ExAws.Config.new(:sns).region
   end
 end
