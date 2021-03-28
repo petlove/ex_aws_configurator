@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## [1.1.0](https://github.com/marciotoze/ex_aws_configurator/compare/v1.0.3...v1.1.0) (2021-03-28)
+
+
+### Features
+
+* add dead letter queue and some minor improvements ([2e8232e](https://github.com/marciotoze/ex_aws_configurator/commit/2e8232e07cd742a6deb1504bb09f4844ca8cd3d1))
+* add dead_letter options ([7b66e59](https://github.com/marciotoze/ex_aws_configurator/commit/7b66e59b82126e04986181f3a694d7c086ff9b75))
+
 ### [1.0.3](https://github.com/marciotoze/ex_aws_configurator/compare/v1.0.2...v1.0.3) (2021-02-08)
 
 
