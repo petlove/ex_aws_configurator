@@ -3,7 +3,7 @@ use Mix.Config
 config :ex_aws,
   access_key_id: "UNSET",
   secret_access_key: "UNSET",
-  region: "us-east-1"
+  security_token: "UNSET"
 
 config :ex_aws, :sns,
   scheme: "http://",
@@ -17,22 +17,23 @@ config :ex_aws, :sqs,
 
 config :ex_aws_configurator,
   account_id: "000000000000",
+  region: "us-east-1",
   queues: %{
     an_queue: %{
       environment: "test",
       prefix: "prefix",
       region: "us-east-1",
-      options: [dead_letter_queue: true],
       topics: [:an_topic, :another_topic]
     },
-    xxx: %{
+    another_queue: %{
       environment: "test",
       prefix: "prefix",
       region: "us-east-1",
+      options: [dead_letter_queue: false],
       topics: []
     }
   },
   topics: %{
-    an_topic: %{environment: nil},
-    another_topic: %{environment: "teste", prefix: "prefixo", region: "sa-east-1"}
+    an_topic: %{environment: "test", prefix: "prefix"},
+    another_topic: %{environment: nil}
   }

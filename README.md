@@ -61,7 +61,7 @@ assuming `prod` environment, when run `ExAwsConfigurator.setup()` will:
 
 1. create queue named **queue_prefix_an_environment_an_queue** on **us-east-1** AWS region
 2. create topic named **prefix_an_environment_an_topic** on **us-east-1** AWS region
-3. create topic named **prod_another_topic** on defult AWS region (defined by [ExAws](https://github.com/ex-aws/ex_aws))
+3. create topic named **prod_another_topic** on default AWS region
 4. subscribe queue **queue_prefix_an_environment_an_queue** into topic **prefix_an_environment_an_topic**
 
 queue and topic name composition is: `prefix + environment + key` joined by `_`.
@@ -73,7 +73,7 @@ queue and topic name composition is: `prefix + environment + key` joined by `_`.
 | `topics` | `[]` | true | list of topic configuration |
 | `environment` | `Mix.env()` | no | current environment, this is used to compose topic/queue name, use `nil` to skip |
 | `prefix` | `nil` | no | Used to compose topic/queue name. |
-| `region` | `ExAws default` | no | use to specify aws region or to override ex_aws default region |
+| `region` | `System.get_env("AWS_REGION")` | no | use to specify aws region or to override ex_aws default region |
 | `topics` | `[]` | no | list of topics that the queue will subscribe to, must be an atom and the topic must be specified on topics list |
 
 if you prefer more control on **topics** and **queues** criation you can use create/subscribe methods separately

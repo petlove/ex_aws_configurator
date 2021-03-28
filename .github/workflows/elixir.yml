@@ -39,6 +39,7 @@ jobs:
     - name: Set up Elixir
       uses: actions/setup-elixir@v1
       with:
+        experimental-otp: true
         elixir-version: ${{ env.ELIXIR_VERSION }}
         otp-version: ${{ env.OTP_VERSION }}
 

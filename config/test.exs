@@ -16,4 +16,5 @@ config :ex_aws, :sqs,
   port: 4566
 
 config :ex_aws_configurator,
-  account_id: "000000000000"
+  account_id: "000000000000",
+  region: "us-east-1"

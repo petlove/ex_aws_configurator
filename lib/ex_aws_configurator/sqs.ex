@@ -55,15 +55,44 @@ defmodule ExAwsConfigurator.SQS do
 
   @spec create_queue(Queue.t(), map) :: {:ok, term} | {:error, term}
   def create_queue(%Queue{} = queue, tags) when is_map(tags) do
+    queue =
+      if Keyword.get(queue.options, :dead_letter_queue) do
+        create_dead_letter_queue(queue, tags)
+      else
+        queue
+      end
+
     full_name = Queue.full_name(queue)
 
-    Logger.info(
-      "Creating queue #{full_name} on #{queue.region} with attributes #{inspect(queue.attributes)}"
-    )
+    Logger.info(~s"""
+    \n\n  Creating queue #{full_name} on #{queue.region}
+        Attributes:
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} delay_seconds: #{queue.attributes[:delay_seconds]}
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} maximum_message_size: #{
+      queue.attributes[:maximum_message_size]
+    }
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} message_retention_period: #{
+      queue.attributes[:message_retention_period]
+    }
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} receive_message_wait_time_seconds: #{
+      queue.attributes[:receive_message_wait_time_seconds]
+    }
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} visibility_timeout: #{
+      queue.attributes[:visibility_timeout]
+    }
+        Options:
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} dead_letter_queue: #{
+      queue.options[:dead_letter_queue]
+    }
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} dead_letter_queue_suffix: #{
+      queue.options[:dead_letter_queue_suffix]
+    }
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} max_receive_count: #{
+      queue.options[:max_receive_count]
+    }
+    """)
 
-    full_name
-    |> SQS.create_queue(queue.attributes, tags)
-    |> ExAws.request(region: queue.region)
+    create_queue_on_sqs(full_name, queue, tags)
   end
 
   @doc """
@@ -84,7 +113,7 @@ defmodule ExAwsConfigurator.SQS do
     topic
     |> Topic.arn()
     |> SNS.subscribe("sqs", Queue.arn(queue))
-    |> ExAws.request(region: Topic.region(topic))
+    |> ExAws.request(region: topic.region)
   end
 
   @doc """
@@ -143,6 +172,32 @@ defmodule ExAwsConfigurator.SQS do
     queue
     |> Queue.url()
     |> SQS.send_message(message, opts)
+    |> ExAws.request(region: queue.region)
+  end
+
+  defp create_dead_letter_queue(%Queue{options: opts} = queue, tags) do
+    dead_letter_queue_suffix = Keyword.get(opts, :dead_letter_queue_suffix)
+    full_name = Queue.full_name(queue) <> dead_letter_queue_suffix
+    max_receive_count = Keyword.get(opts, :max_receive_count)
+
+    create_queue_on_sqs(full_name, queue, tags)
+
+    attributes =
+      Keyword.merge(
+        queue.attributes,
+        redrive_policy:
+          Jason.encode!(%{
+            maxReceiveCount: max_receive_count,
+            deadLetterTargetArn: Queue.arn(queue) <> dead_letter_queue_suffix
+          })
+      )
+
+    struct(queue, %{attributes: attributes})
+  end
+
+  defp create_queue_on_sqs(full_name, queue, tags) do
+    full_name
+    |> SQS.create_queue(queue.attributes, tags)
     |> ExAws.request(region: queue.region)
   end
 end
