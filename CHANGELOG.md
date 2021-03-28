@@ -1,5 +1,12 @@
 # CHANGELOG
 
+### [1.1.1](https://github.com/marciotoze/ex_aws_configurator/compare/v1.1.0...v1.1.1) (2021-03-28)
+
+
+### Bug Fixes
+
+* default aws region to use System env var ([e9ead53](https://github.com/marciotoze/ex_aws_configurator/commit/e9ead53a6438ea147787fdaa30ddda5c9fb81b97))
+
 ## [1.1.0](https://github.com/marciotoze/ex_aws_configurator/compare/v1.0.3...v1.1.0) (2021-03-28)
 
 
