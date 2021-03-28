@@ -8,10 +8,7 @@ defmodule ExAwsConfigurator.Topic do
           prefix: binary()
         }
 
-  defstruct name: nil,
-            environment: Mix.env(),
-            region: nil,
-            prefix: nil
+  defstruct [:name, :environment, :region, :prefix]
 
   @doc "get topic arn"
   @spec arn(t()) :: String.t()

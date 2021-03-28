@@ -28,12 +28,6 @@ defmodule ExAwsConfigurator.SQSTest do
       assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_min_config)
     end
 
-    test "create queue when receive a struct with correct configuration" do
-      queue = ExAwsConfigurator.get_queue(:queue_name)
-
-      assert {:ok, %{status_code: 200}} = SQS.create_queue(queue)
-    end
-
     test "raise when tries to create a queue without configuration" do
       assert_raise ExAwsConfigurator.NoResultsError, fn ->
         SQS.create_queue(:not_configured_queue)
@@ -44,13 +38,6 @@ defmodule ExAwsConfigurator.SQSTest do
   describe "subscribe/2" do
     test "subscribe queue to an topic when is atom and with valid configuration" do
       assert {:ok, %{status_code: 200}} = SQS.subscribe(:queue_name, :topic_name)
-    end
-
-    test "subscribe queue to an topic when is struct and with valid configuration" do
-      queue = ExAwsConfigurator.get_queue(:queue_name)
-      topic = ExAwsConfigurator.get_topic(:topic_name)
-
-      assert {:ok, %{status_code: 200}} = SQS.subscribe(queue, topic)
     end
 
     test "raise when tries to subscribe a queue without queue configuration" do

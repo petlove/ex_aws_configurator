@@ -5,7 +5,14 @@ defmodule ExAwsConfigurator do
 
   require Logger
 
-  alias ExAwsConfigurator.{Queue, SNS, SQS, Topic}
+  alias ExAwsConfigurator.{
+    Queue,
+    QueueAttributes,
+    QueueOptions,
+    SNS,
+    SQS,
+    Topic
+  }
 
   @doc """
   Create all topics, create all queue and all subscrition present into configuration
@@ -47,16 +54,19 @@ defmodule ExAwsConfigurator do
       {:ok, value} ->
         queue =
           %Queue{name: queue_name}
+          |> struct(%{
+            environment: Application.get_env(:ex_aws_configurator, :environment),
+            region: Application.get_env(:ex_aws_configurator, :region)
+          })
           |> struct(value)
-          |> struct(%{region: Application.get_env(:ex_aws_configurator, :region)})
-
-        queue = struct(queue, %{topics: Enum.map(queue.topics, &get_topic/1)})
-
-        attributes = Keyword.put_new(queue.attributes, :policy, Queue.policy(queue))
+          |> struct(%{topics: Enum.map(Map.get(value, :topics, []), &get_topic/1)})
 
         queue
-        |> struct(%{options: Keyword.merge(%Queue{}.options, queue.options)})
-        |> struct(%{attributes: Keyword.merge(%Queue{}.attributes, attributes)})
+        |> struct(%{options: struct(%QueueOptions{}, Map.get(value, :options, []))})
+        |> struct(%{
+          attributes:
+            struct(%QueueAttributes{policy: Queue.policy(queue)}, Map.get(value, :attributes, []))
+        })
 
       :error ->
         raise ExAwsConfigurator.NoResultsError, type: :queue, name: queue_name
@@ -81,8 +91,11 @@ defmodule ExAwsConfigurator do
     case Map.fetch(get_env(:topics), topic_name) do
       {:ok, value} ->
         %Topic{name: topic_name}
+        |> struct(%{
+          environment: Application.get_env(:ex_aws_configurator, :environment),
+          region: Application.get_env(:ex_aws_configurator, :region)
+        })
         |> struct(value)
-        |> struct(%{region: Application.get_env(:ex_aws_configurator, :region)})
 
       :error ->
         raise ExAwsConfigurator.NoResultsError, type: :topic, name: topic_name

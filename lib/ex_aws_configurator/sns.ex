@@ -37,13 +37,7 @@ defmodule ExAwsConfigurator.SNS do
   """
   @spec create_topic(atom) :: {:ok, term} | {:error, term}
   def create_topic(topic_name) when is_atom(topic_name) do
-    topic_name
-    |> ExAwsConfigurator.get_topic()
-    |> create_topic()
-  end
-
-  @spec create_topic(Topic.t()) :: {:ok, term} | {:error, term}
-  def create_topic(%Topic{} = topic) do
+    topic = ExAwsConfigurator.get_topic(topic_name)
     full_name = Topic.full_name(topic)
 
     Logger.info("Creating topic #{full_name} on #{topic.region}")
@@ -58,13 +52,8 @@ defmodule ExAwsConfigurator.SNS do
   """
   @spec publish(atom, atom) :: {:ok, term} | {:error, term}
   def publish(topic_name, message) when is_atom(topic_name) do
-    topic_name
-    |> ExAwsConfigurator.get_topic()
-    |> publish(message)
-  end
+    topic = ExAwsConfigurator.get_topic(topic_name)
 
-  @spec publish(Topic.t(), atom) :: {:ok, term} | {:error, term}
-  def publish(%Topic{} = topic, message) do
     Logger.info("Publish message to #{Topic.full_name(topic)}")
 
     message

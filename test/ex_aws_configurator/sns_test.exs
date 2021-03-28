@@ -26,12 +26,6 @@ defmodule ExAwsConfigurator.SNSTest do
       assert {:ok, %{status_code: 200}} = SNS.create_topic(:topic_min_config)
     end
 
-    test "create topic when receive a Topic with correct configuration" do
-      topic = ExAwsConfigurator.get_topic(:topic_name)
-
-      assert {:ok, %{status_code: 200}} = SNS.create_topic(topic)
-    end
-
     test "raise when tries to create a topic without configuration" do
       assert_raise ExAwsConfigurator.NoResultsError, fn ->
         SNS.create_topic(:not_configured_topic)

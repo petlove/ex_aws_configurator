@@ -1,37 +1,48 @@
-defmodule ExAwsConfigurator.Queue do
-  alias ExAwsConfigurator.Topic
+defmodule ExAwsConfigurator.QueueAttributes do
+  @type t :: ExAws.SQS.queue_attributes()
 
+  defstruct delay_seconds: 0,
+            maximum_message_size: 262_144,
+            message_retention_period: 1_209_600,
+            receive_message_wait_time_seconds: 0,
+            policy: nil,
+            redrive_policy: nil,
+            visibility_timeout: 60
+end
+
+defmodule ExAwsConfigurator.QueueOptions do
   @type queue_options :: [
+          max_receive_count: integer(),
           dead_letter_queue: boolean(),
           dead_letter_queue_suffix: binary()
         ]
+
+  defstruct max_receive_count: 7, dead_letter_queue: true, dead_letter_queue_suffix: "_failures"
+end
+
+defmodule ExAwsConfigurator.Queue do
+  alias ExAwsConfigurator.{
+    QueueAttributes,
+    QueueOptions,
+    Topic
+  }
 
   @type t :: %__MODULE__{
           name: binary(),
           region: binary(),
           environment: binary(),
           prefix: binary(),
-          attributes: ExAws.SQS.queue_attributes(),
-          options: queue_options(),
+          attributes: QueueAttributes,
+          options: QueueOptions,
           topics: [Topic]
         }
 
   defstruct name: nil,
-            environment: Mix.env(),
+            environment: nil,
             region: nil,
             prefix: nil,
-            attributes: [
-              delay_seconds: 0,
-              maximum_message_size: 262_144,
-              message_retention_period: 1_209_600,
-              receive_message_wait_time_seconds: 0,
-              visibility_timeout: 60
-            ],
-            options: [
-              max_receive_count: 7,
-              dead_letter_queue: true,
-              dead_letter_queue_suffix: "_failures"
-            ],
+            attributes: %QueueAttributes{},
+            options: %QueueOptions{},
             topics: []
 
   @doc "get queue full name, its a composition of `prefix + environment + queue.name`"

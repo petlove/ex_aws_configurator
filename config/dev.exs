@@ -17,6 +17,7 @@ config :ex_aws, :sqs,
 
 config :ex_aws_configurator,
   account_id: "000000000000",
+  environment: Mix.env(),
   region: "us-east-1",
   queues: %{
     an_queue: %{
@@ -35,5 +36,5 @@ config :ex_aws_configurator,
   },
   topics: %{
     an_topic: %{environment: "test", prefix: "prefix"},
-    another_topic: %{environment: nil}
+    another_topic: %{environment: nil, region: "sa-east-1"}
   }
