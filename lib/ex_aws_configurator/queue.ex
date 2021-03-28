@@ -18,7 +18,7 @@ defmodule ExAwsConfigurator.Queue do
 
   defstruct name: nil,
             environment: Mix.env(),
-            region: Application.get_env(:ex_aws_configurator, :region),
+            region: nil,
             prefix: nil,
             attributes: [
               delay_seconds: 0,

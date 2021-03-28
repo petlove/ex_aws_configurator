@@ -10,7 +10,7 @@ defmodule ExAwsConfigurator.Topic do
 
   defstruct name: nil,
             environment: Mix.env(),
-            region: Application.get_env(:ex_aws_configurator, :region),
+            region: nil,
             prefix: nil
 
   @doc "get topic arn"

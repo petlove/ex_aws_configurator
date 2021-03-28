@@ -45,7 +45,11 @@ defmodule ExAwsConfigurator do
   def get_queue(queue_name) when is_atom(queue_name) do
     case Map.fetch(get_env(:queues), queue_name) do
       {:ok, value} ->
-        queue = struct(%Queue{name: queue_name}, value)
+        queue =
+          %Queue{name: queue_name}
+          |> struct(value)
+          |> struct(%{region: Application.get_env(:ex_aws_configurator, :region)})
+
         queue = struct(queue, %{topics: Enum.map(queue.topics, &get_topic/1)})
 
         attributes = Keyword.put_new(queue.attributes, :policy, Queue.policy(queue))
@@ -75,8 +79,13 @@ defmodule ExAwsConfigurator do
   @spec get_topic(atom) :: any | no_return
   def get_topic(topic_name) when is_atom(topic_name) do
     case Map.fetch(get_env(:topics), topic_name) do
-      {:ok, value} -> struct(%Topic{name: topic_name}, value)
-      :error -> raise ExAwsConfigurator.NoResultsError, type: :topic, name: topic_name
+      {:ok, value} ->
+        %Topic{name: topic_name}
+        |> struct(value)
+        |> struct(%{region: Application.get_env(:ex_aws_configurator, :region)})
+
+      :error ->
+        raise ExAwsConfigurator.NoResultsError, type: :topic, name: topic_name
     end
   end
 
