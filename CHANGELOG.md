@@ -1,5 +1,12 @@
 # CHANGELOG
 
+### [1.1.2](https://github.com/marciotoze/ex_aws_configurator/compare/v1.1.1...v1.1.2) (2021-03-29)
+
+
+### Bug Fixes
+
+* problema when tries to create dead latter queue ([b314f25](https://github.com/marciotoze/ex_aws_configurator/commit/b314f2544709f3fa9b16b3d568c5025e5a92c895))
+
 ### [1.1.1](https://github.com/marciotoze/ex_aws_configurator/compare/v1.1.0...v1.1.1) (2021-03-28)
 
 
