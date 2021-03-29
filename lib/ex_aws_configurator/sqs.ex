@@ -157,27 +157,31 @@ defmodule ExAwsConfigurator.SQS do
     |> ExAws.request(region: queue.region)
   end
 
-  defp create_dead_letter_queue(%Queue{options: options} = queue, tags) do
+  defp create_dead_letter_queue(%Queue{attributes: attributes, options: options} = queue, tags) do
     full_name = Queue.full_name(queue) <> options.dead_letter_queue_suffix
 
-    create_queue_on_sqs(full_name, queue, tags)
+    dead_letter_queue =
+      struct(queue, %{attributes: struct(attributes, %{redrive_policy: nil, policy: nil})})
 
-    attributes =
-      struct(
-        queue.attributes,
-        redrive_policy:
-          Jason.encode!(%{
-            maxReceiveCount: options.max_receive_count,
-            deadLetterTargetArn: Queue.arn(queue) <> options.dead_letter_queue_suffix
-          })
-      )
+    create_queue_on_sqs(full_name, dead_letter_queue, tags)
 
-    struct(queue, %{attributes: attributes})
+    redrive_policy =
+      Jason.encode!(%{
+        maxReceiveCount: options.max_receive_count,
+        deadLetterTargetArn: Queue.arn(queue) <> options.dead_letter_queue_suffix
+      })
+
+    struct(queue, %{attributes: struct(queue.attributes, %{redrive_policy: redrive_policy})})
   end
 
   defp create_queue_on_sqs(full_name, queue, tags) do
+    attributes =
+      queue.attributes
+      |> Map.from_struct()
+      |> Enum.filter(&is_nil/1)
+
     full_name
-    |> SQS.create_queue(Map.from_struct(queue.attributes), tags)
+    |> SQS.create_queue(attributes, tags)
     |> ExAws.request(region: queue.region)
   end
 end
