@@ -11,10 +11,12 @@ defmodule ExAwsConfigurator.SQSTest do
     add_queue_to_config(build(:queue_config, name: :queue_name))
     add_queue_to_config(%{queue_min_config: %{}})
     add_topic_to_config(build(:topic_config, name: :topic_name))
+    add_queue_to_config(build(:queue_config, name: :raw_queue, raw_message_delivery: true))
 
     SQS.create_queue(:queue_min_config)
     SQS.create_queue(:queue_name)
     SNS.create_topic(:topic_name)
+    SQS.create_queue(:raw_queue)
 
     add_queue_to_config(build(:queue_config, name: :non_created_queue))
   end
@@ -38,6 +40,10 @@ defmodule ExAwsConfigurator.SQSTest do
   describe "subscribe/2" do
     test "subscribe queue to an topic when is atom and with valid configuration" do
       assert {:ok, %{status_code: 200}} = SQS.subscribe(:queue_name, :topic_name)
+    end
+
+    test "subscribe queue to an topic when raw_message_delivery is true" do
+      assert {:ok, %{status_code: 200}} = SQS.subscribe(:raw_queue, :topic_name)
     end
 
     test "raise when tries to subscribe a queue without queue configuration" do
