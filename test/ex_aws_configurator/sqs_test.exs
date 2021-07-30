@@ -73,7 +73,7 @@ defmodule ExAwsConfigurator.SQSTest do
     end
 
     test "public an message to an non existent queue" do
-      assert {:error, {:http_error, _, %{code: "AWS.SimpleQueueService.NonExistentQueue"}}} =
+      assert {:error, {:http_error, _, %{code: "QueueDoesNotExist"}}} =
                SQS.send_message(:non_created_queue, "message")
     end
 
