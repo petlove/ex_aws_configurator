@@ -14,10 +14,14 @@ defmodule ExAwsConfigurator.QueueOptions do
   @type queue_options :: [
           max_receive_count: integer(),
           dead_letter_queue: boolean(),
-          dead_letter_queue_suffix: binary()
+          dead_letter_queue_suffix: binary(),
+          raw_message_delivery: boolean()
         ]
 
-  defstruct max_receive_count: 7, dead_letter_queue: true, dead_letter_queue_suffix: "_failures"
+  defstruct max_receive_count: 7,
+            dead_letter_queue: true,
+            dead_letter_queue_suffix: "_failures",
+            raw_message_delivery: false
 end
 
 defmodule ExAwsConfigurator.Queue do
