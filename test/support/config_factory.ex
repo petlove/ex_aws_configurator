@@ -14,13 +14,17 @@ defmodule ExAwsConfigurator.Factory.Config do
       def queue_config_factory(attrs) do
         name = Map.get(attrs, :name, :an_queue)
         raw_message_delivery = Map.get(attrs, :raw_message_delivery, false)
+        dead_letter_queue = Map.get(attrs, :dead_letter_queue, true)
 
         queue_config =
           %{
             environment: "test",
             prefix: "prefix",
             region: "us-east-1",
-            options: [raw_message_delivery: raw_message_delivery],
+            options: [
+              raw_message_delivery: raw_message_delivery,
+              dead_letter_queue: dead_letter_queue
+            ],
             topics: []
           }
           |> merge_attributes(attrs)

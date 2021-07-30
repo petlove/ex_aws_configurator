@@ -13,6 +13,10 @@ defmodule ExAwsConfigurator.SQSTest do
     add_topic_to_config(build(:topic_config, name: :topic_name))
     add_queue_to_config(build(:queue_config, name: :raw_queue, raw_message_delivery: true))
 
+    add_queue_to_config(
+      build(:queue_config, name: :without_failures_queue, dead_letter_queue: false)
+    )
+
     SQS.create_queue(:queue_min_config)
     SQS.create_queue(:queue_name)
     SNS.create_topic(:topic_name)
@@ -24,6 +28,10 @@ defmodule ExAwsConfigurator.SQSTest do
   describe "create_queue/1" do
     test "create queue when receive a atom with correct configuration" do
       assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_name)
+    end
+
+    test "create queue without dead letter queue" do
+      assert {:ok, %{status_code: 200}} = SQS.create_queue(:without_failures_queue)
     end
 
     test "create queue with min attributes" do
