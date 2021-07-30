@@ -4,6 +4,8 @@ defmodule ExAwsConfigurator.SQS do
   alias ExAwsConfigurator.{Queue, Topic}
   alias ExAws.{SNS, SQS}
 
+  @raw_message_delivery "raw_message_delivery"
+
   @doc """
   Create an sqs queue based on ex_aws_configurator configuration, that method do NOT subscribe on any topic
 
@@ -100,10 +102,15 @@ defmodule ExAwsConfigurator.SQS do
 
     Logger.info("Subscribe queue #{Queue.full_name(queue)} to topic #{Topic.full_name(topic)}")
 
-    topic
-    |> Topic.arn()
-    |> SNS.subscribe("sqs", Queue.arn(queue))
-    |> ExAws.request(region: topic.region)
+    with {:ok, %{body: %{subscription_arn: subscription_arn}}} = subscription_response <-
+           topic
+           |> Topic.arn()
+           |> SNS.subscribe("sqs", Queue.arn(queue))
+           |> ExAws.request(region: topic.region) do
+      if queue.options.raw_message_delivery,
+        do: set_raw_message_delivery(subscription_arn),
+        else: subscription_response
+    end
   end
 
   @doc """
@@ -183,5 +190,11 @@ defmodule ExAwsConfigurator.SQS do
     full_name
     |> SQS.create_queue(attributes, tags)
     |> ExAws.request(region: queue.region)
+  end
+
+  defp set_raw_message_delivery(subscription_arn) do
+    @raw_message_delivery
+    |> SNS.set_subscription_attributes(true, subscription_arn)
+    |> ExAws.request()
   end
 end
