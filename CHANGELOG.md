@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [1.2.0](https://github.com/marciotoze/ex_aws_configurator/compare/v1.1.2...v1.2.0) (2021-07-30)
+
+
+### Features
+
+* add raw_message_delivery option to queue ([73e5ce7](https://github.com/marciotoze/ex_aws_configurator/commit/73e5ce7a01928bb11b5154831c82310eaf53ad49))
+* Add raw_message_delivery option to queue subscriptions ([904220d](https://github.com/marciotoze/ex_aws_configurator/commit/904220da54808a845596fe429982351e0735e9cf))
+* add test case ([3f89cf5](https://github.com/marciotoze/ex_aws_configurator/commit/3f89cf53f9b483542ea2d2e9200941c86a390140))
+
+
+### Bug Fixes
+
+* build ([f8e4397](https://github.com/marciotoze/ex_aws_configurator/commit/f8e43975e62a6b233bd4bc78074fe2a207a32e3a))
+
 ### [1.1.2](https://github.com/marciotoze/ex_aws_configurator/compare/v1.1.1...v1.1.2) (2021-03-29)
 
 
