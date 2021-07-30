@@ -71,9 +71,6 @@ jobs:
     - name: Coveralls
       run: mix coveralls.github
 
-    - name: Dialyzer
-      run: mix dialyzer --halt-exit-status
-
     - name: Versioning
       run: |
         mix deps.get
