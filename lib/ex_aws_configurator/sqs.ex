@@ -65,6 +65,7 @@ defmodule ExAwsConfigurator.SQS do
     \n\n  Creating queue #{full_name} on #{queue.region}
         Attributes:
           #{IO.ANSI.green()}>#{IO.ANSI.reset()} delay_seconds: #{queue.attributes.delay_seconds}
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} fifo_queue: #{queue.attributes.fifo_queue}
           #{IO.ANSI.green()}>#{IO.ANSI.reset()} maximum_message_size: #{
       queue.attributes.maximum_message_size
     }

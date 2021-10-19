@@ -12,6 +12,7 @@ defmodule ExAwsConfigurator.SQSTest do
     add_queue_to_config(%{queue_min_config: %{}})
     add_topic_to_config(build(:topic_config, name: :topic_name))
     add_queue_to_config(build(:queue_config, name: :raw_queue, raw_message_delivery: true))
+    add_queue_to_config(build(:queue_config, name: :fifo_queue, fifo_queue: true))
 
     add_queue_to_config(
       build(:queue_config, name: :without_failures_queue, dead_letter_queue: false)
@@ -21,6 +22,7 @@ defmodule ExAwsConfigurator.SQSTest do
     SQS.create_queue(:queue_name)
     SNS.create_topic(:topic_name)
     SQS.create_queue(:raw_queue)
+    SQS.create_queue(:fifo_queue)
 
     add_queue_to_config(build(:queue_config, name: :non_created_queue))
   end
@@ -36,6 +38,11 @@ defmodule ExAwsConfigurator.SQSTest do
 
     test "create queue with min attributes" do
       assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_min_config)
+    end
+
+    test "create a fifo queue" do
+      assert {:ok, %{status_code: 200}} = SQS.create_queue(:fifo_queue)
+      assert %{attributes: %{fifo_queue: true}} = ExAwsConfigurator.get_queue(:fifo_queue)
     end
 
     test "raise when tries to create a queue without configuration" do
