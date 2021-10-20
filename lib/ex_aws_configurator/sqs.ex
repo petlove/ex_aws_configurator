@@ -64,6 +64,9 @@ defmodule ExAwsConfigurator.SQS do
     Logger.info(~s"""
     \n\n  Creating queue #{full_name} on #{queue.region}
         Attributes:
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} content_based_deduplication: #{
+      queue.attributes.content_based_deduplication
+    }
           #{IO.ANSI.green()}>#{IO.ANSI.reset()} delay_seconds: #{queue.attributes.delay_seconds}
           #{IO.ANSI.green()}>#{IO.ANSI.reset()} fifo_queue: #{queue.attributes.fifo_queue}
           #{IO.ANSI.green()}>#{IO.ANSI.reset()} maximum_message_size: #{
@@ -169,7 +172,15 @@ defmodule ExAwsConfigurator.SQS do
     full_name = Queue.full_name(queue) <> options.dead_letter_queue_suffix
 
     dead_letter_queue =
-      struct(queue, %{attributes: struct(attributes, %{redrive_policy: nil, policy: nil})})
+      struct(queue, %{
+        attributes:
+          struct(attributes, %{
+            content_based_deduplication: attributes.content_based_deduplication,
+            fifo_queue: attributes.fifo_queue,
+            redrive_policy: nil,
+            policy: nil
+          })
+      })
 
     create_queue_on_sqs(full_name, dead_letter_queue, tags)
 

@@ -16,6 +16,7 @@ defmodule ExAwsConfigurator.Factory.Config do
         raw_message_delivery = Map.get(attrs, :raw_message_delivery, false)
         dead_letter_queue = Map.get(attrs, :dead_letter_queue, true)
         fifo_queue = Map.get(attrs, :fifo_queue, false)
+        content_based_deduplication = Map.get(attrs, :content_based_deduplication, false)
 
         queue_config =
           %{
@@ -27,6 +28,7 @@ defmodule ExAwsConfigurator.Factory.Config do
               dead_letter_queue: dead_letter_queue
             ],
             attributes: [
+              content_based_deduplication: content_based_deduplication,
               fifo_queue: fifo_queue
             ],
             topics: []
