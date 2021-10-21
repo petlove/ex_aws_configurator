@@ -6,6 +6,7 @@ defmodule ExAwsConfigurator.SQS do
 
   @raw_message_delivery "raw_message_delivery"
   @fifo_suffix ".fifo"
+  @fifo_attributes [:content_based_deduplication, :fifo_queue]
 
   @doc """
   Create an sqs queue based on ex_aws_configurator configuration, that method do NOT subscribe on any topic
@@ -199,7 +200,7 @@ defmodule ExAwsConfigurator.SQS do
     attributes =
       queue.attributes
       |> Map.from_struct()
-      |> Enum.reject(&is_nil/1)
+      |> Enum.reject(fn {key, value} -> key in @fifo_attributes and is_nil(value) end)
 
     full_name
     |> SQS.create_queue(attributes, tags)

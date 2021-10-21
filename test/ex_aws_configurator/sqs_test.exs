@@ -25,11 +25,9 @@ defmodule ExAwsConfigurator.SQSTest do
       build(:queue_config, name: :without_failures_queue, dead_letter_queue: false)
     )
 
-    SQS.create_queue(:queue_min_config)
     SQS.create_queue(:queue_name)
     SNS.create_topic(:topic_name)
     SQS.create_queue(:raw_queue)
-    SQS.create_queue(:"queue.fifo")
 
     add_queue_to_config(build(:queue_config, name: :non_created_queue))
   end

@@ -1,9 +1,9 @@
 defmodule ExAwsConfigurator.QueueAttributes do
   @type t :: ExAws.SQS.queue_attributes()
 
-  defstruct content_based_deduplication: false,
+  defstruct content_based_deduplication: nil,
             delay_seconds: 0,
-            fifo_queue: false,
+            fifo_queue: nil,
             maximum_message_size: 262_144,
             message_retention_period: 1_209_600,
             receive_message_wait_time_seconds: 0,

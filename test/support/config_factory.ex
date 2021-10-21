@@ -15,26 +15,18 @@ defmodule ExAwsConfigurator.Factory.Config do
         name = Map.get(attrs, :name, :an_queue)
         raw_message_delivery = Map.get(attrs, :raw_message_delivery, false)
         dead_letter_queue = Map.get(attrs, :dead_letter_queue, true)
-        fifo_queue = Map.get(attrs, :fifo_queue, false)
-        content_based_deduplication = Map.get(attrs, :content_based_deduplication, false)
 
-        queue_config =
-          %{
-            environment: "test",
-            prefix: "prefix",
-            region: "us-east-1",
-            options: [
-              raw_message_delivery: raw_message_delivery,
-              dead_letter_queue: dead_letter_queue
-            ],
-            attributes: [
-              content_based_deduplication: content_based_deduplication,
-              fifo_queue: fifo_queue
-            ],
-            topics: []
-          }
-          |> merge_attributes(attrs)
-          |> Map.delete(:name)
+        queue_config = %{
+          environment: "test",
+          prefix: "prefix",
+          region: "us-east-1",
+          options: [
+            raw_message_delivery: raw_message_delivery,
+            dead_letter_queue: dead_letter_queue
+          ],
+          attributes: build_fifo_queue_attributes(attrs),
+          topics: []
+        }
 
         %{name => queue_config}
       end
@@ -53,6 +45,15 @@ defmodule ExAwsConfigurator.Factory.Config do
 
         %{name => topic_config}
       end
+
+      defp build_fifo_queue_attributes(%{fifo_queue: true}) do
+        [
+          content_based_deduplication: true,
+          fifo_queue: true
+        ]
+      end
+
+      defp build_fifo_queue_attributes(_attrs), do: []
     end
   end
 end
