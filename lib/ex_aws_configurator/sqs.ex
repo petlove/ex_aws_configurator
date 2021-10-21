@@ -5,6 +5,7 @@ defmodule ExAwsConfigurator.SQS do
   alias ExAws.{SNS, SQS}
 
   @raw_message_delivery "raw_message_delivery"
+  @fifo_suffix ".fifo"
 
   @doc """
   Create an sqs queue based on ex_aws_configurator configuration, that method do NOT subscribe on any topic
@@ -169,7 +170,8 @@ defmodule ExAwsConfigurator.SQS do
   end
 
   defp create_dead_letter_queue(%Queue{attributes: attributes, options: options} = queue, tags) do
-    full_name = Queue.full_name(queue) <> options.dead_letter_queue_suffix
+    dead_letter_name = queue |> Queue.full_name() |> format_naming(queue)
+    dead_letter_arn = queue |> Queue.arn() |> format_naming(queue)
 
     dead_letter_queue =
       struct(queue, %{
@@ -182,12 +184,12 @@ defmodule ExAwsConfigurator.SQS do
           })
       })
 
-    create_queue_on_sqs(full_name, dead_letter_queue, tags)
+    create_queue_on_sqs(dead_letter_name, dead_letter_queue, tags)
 
     redrive_policy =
       Jason.encode!(%{
         maxReceiveCount: options.max_receive_count,
-        deadLetterTargetArn: Queue.arn(queue) <> options.dead_letter_queue_suffix
+        deadLetterTargetArn: dead_letter_arn
       })
 
     struct(queue, %{attributes: struct(queue.attributes, %{redrive_policy: redrive_policy})})
@@ -197,7 +199,7 @@ defmodule ExAwsConfigurator.SQS do
     attributes =
       queue.attributes
       |> Map.from_struct()
-      |> Enum.filter(&is_nil/1)
+      |> Enum.reject(&is_nil/1)
 
     full_name
     |> SQS.create_queue(attributes, tags)
@@ -208,5 +210,13 @@ defmodule ExAwsConfigurator.SQS do
     @raw_message_delivery
     |> SNS.set_subscription_attributes(true, subscription_arn)
     |> ExAws.request()
+  end
+
+  defp format_naming(name, %Queue{attributes: attributes, options: options}) do
+    name = name |> String.split(".") |> List.first()
+
+    if attributes.fifo_queue,
+      do: name <> options.dead_letter_queue_suffix <> @fifo_suffix,
+      else: name <> options.dead_letter_queue_suffix
   end
 end
