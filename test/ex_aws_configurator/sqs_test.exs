@@ -1,7 +1,7 @@
 defmodule ExAwsConfigurator.SQSTest do
   use ExAwsConfigurator.Case
 
-  alias ExAwsConfigurator.{SNS, SQS}
+  alias ExAwsConfigurator.{Queue, SNS, SQS}
 
   doctest SQS
 
@@ -14,10 +14,17 @@ defmodule ExAwsConfigurator.SQSTest do
     add_queue_to_config(build(:queue_config, name: :raw_queue, raw_message_delivery: true))
 
     add_queue_to_config(
+      build(:queue_config,
+        name: :"queue.fifo",
+        content_based_deduplication: true,
+        fifo_queue: true
+      )
+    )
+
+    add_queue_to_config(
       build(:queue_config, name: :without_failures_queue, dead_letter_queue: false)
     )
 
-    SQS.create_queue(:queue_min_config)
     SQS.create_queue(:queue_name)
     SNS.create_topic(:topic_name)
     SQS.create_queue(:raw_queue)
@@ -36,6 +43,15 @@ defmodule ExAwsConfigurator.SQSTest do
 
     test "create queue with min attributes" do
       assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_min_config)
+    end
+
+    test "create a fifo queue" do
+      assert {:ok, %{status_code: 200}} = SQS.create_queue(:"queue.fifo")
+
+      queue = ExAwsConfigurator.get_queue(:"queue.fifo")
+
+      assert %{attributes: %{content_based_deduplication: true, fifo_queue: true}} = queue
+      assert Queue.full_name(queue) == "prefix_test_queue.fifo"
     end
 
     test "raise when tries to create a queue without configuration" do
