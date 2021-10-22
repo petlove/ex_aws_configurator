@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [1.3.0](https://github.com/marciotoze/ex_aws_configurator/compare/v1.2.0...v1.3.0) (2021-10-22)
+
+
+### Features
+
+* allow content_based_deduplication attributes to be set when creating a queue ([b4c76ff](https://github.com/marciotoze/ex_aws_configurator/commit/b4c76ffedc5c97fe5277872773301d9f2b0951dc))
+* allow creation of fifo queues ([ea5818c](https://github.com/marciotoze/ex_aws_configurator/commit/ea5818c5a7db15651f843a16483b0517362ba5e7))
+
+
+### Bug Fixes
+
+* dead letter queues naming when fifo ([cf7caa8](https://github.com/marciotoze/ex_aws_configurator/commit/cf7caa8321b811730dcc760299bfcc20a365aca0))
+* remove fifo attributes when creating standard queues ([544f2d6](https://github.com/marciotoze/ex_aws_configurator/commit/544f2d69ac5bbe48ea76c6e1dcd62c8d37a1c573))
+
 ## [1.2.0](https://github.com/marciotoze/ex_aws_configurator/compare/v1.1.2...v1.2.0) (2021-07-30)
 
 
