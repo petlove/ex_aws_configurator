@@ -78,26 +78,19 @@ defmodule ExAwsConfigurator.Queue do
   @doc false
   @spec policy(t()) :: String.t()
   def policy(%__MODULE__{} = queue) do
-    arn = arn(queue)
-
-    ssid =
-      queue.topics
-      |> Enum.map(& &1.name)
-      |> Enum.join("_and_")
+    queue_arn = arn(queue)
 
     %{
       Version: "2012-10-17",
-      Id: "#{arn}/SQSDefaultPolicy",
       Statement: [
         %{
-          Sid: "subscription_in_#{ssid}",
           Effect: "Allow",
-          Principal: %{AWS: ExAwsConfigurator.get_env(:account_id)},
+          Principal: "*",
           Action: "SQS:*",
-          Resource: [arn],
+          Resource: queue_arn,
           Condition: %{
             ArnLike: %{
-              'aws:SourceArn' => Enum.map(queue.topics, &Topic.arn/1)
+              "aws:SourceArn": Enum.map(queue.topics, &Topic.arn/1)
             }
           }
         }
