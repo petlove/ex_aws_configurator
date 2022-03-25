@@ -11,7 +11,8 @@ defmodule ExAwsConfigurator do
     QueueOptions,
     SNS,
     SQS,
-    Topic
+    Topic,
+    TopicAttributes
   }
 
   @doc """
@@ -96,6 +97,7 @@ defmodule ExAwsConfigurator do
           region: Application.get_env(:ex_aws_configurator, :region)
         })
         |> struct(value)
+        |> struct(%{attributes: struct(%TopicAttributes{}, Map.get(value, :attributes, []))})
 
       :error ->
         raise ExAwsConfigurator.NoResultsError, type: :topic, name: topic_name

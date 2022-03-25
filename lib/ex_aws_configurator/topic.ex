@@ -1,14 +1,27 @@
+defmodule ExAwsConfigurator.TopicAttributes do
+  @type t :: ExAws.SNS.topic_attributes()
+
+  defstruct content_based_deduplication: nil, fifo_topic: nil
+end
+
 defmodule ExAwsConfigurator.Topic do
   require Logger
+
+  alias ExAwsConfigurator.TopicAttributes
 
   @type t :: %__MODULE__{
           name: binary(),
           region: binary(),
           environment: binary(),
-          prefix: binary()
+          prefix: binary(),
+          attributes: TopicAttributes
         }
 
-  defstruct [:name, :environment, :region, :prefix]
+  defstruct name: nil,
+            environment: nil,
+            region: nil,
+            prefix: nil,
+            attributes: %TopicAttributes{}
 
   @doc "get topic arn"
   @spec arn(t()) :: String.t()
