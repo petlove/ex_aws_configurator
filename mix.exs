@@ -58,7 +58,7 @@ defmodule ExAwsConfigurator.MixProject do
       {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: :dev, runtime: false},
       {:ex_aws, "~> 2.0"},
-      {:ex_aws_sns, "~> 2.0"},
+      {:ex_aws_sns, "~> 2.2"},
       {:ex_aws_sqs, "~> 3.2"},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:ex_machina, "~> 2.5.0", only: [:dev, :test]},

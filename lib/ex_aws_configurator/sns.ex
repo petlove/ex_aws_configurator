@@ -4,6 +4,8 @@ defmodule ExAwsConfigurator.SNS do
   alias ExAws.SNS
   alias ExAwsConfigurator.Topic
 
+  @fifo_attributes [:content_based_deduplication, :fifo_topic]
+
   @doc """
   Create an sns topic, based on ex_aws_configurator configuration
 
@@ -39,11 +41,15 @@ defmodule ExAwsConfigurator.SNS do
   def create_topic(topic_name) when is_atom(topic_name) do
     topic = ExAwsConfigurator.get_topic(topic_name)
     full_name = Topic.full_name(topic)
+    attributes =
+      topic.attributes
+      |> Map.from_struct
+      |> Enum.reject(fn {key, value} -> key in @fifo_attributes and is_nil(value) end)
 
     Logger.info("Creating topic #{full_name} on #{topic.region}")
 
     full_name
-    |> SNS.create_topic()
+    |> SNS.create_topic(attributes)
     |> ExAws.request(region: topic.region)
   end
 
