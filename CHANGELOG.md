@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [1.4.0](https://github.com/marciotoze/ex_aws_configurator/compare/v1.3.0...v1.4.0) (2022-03-25)
+
+
+### Features
+
+* add creation of fifo topics (4dbc34e (https://github.com/marciotoze/ex_aws_configurator/commit/4dbc34e9f9bdbc8bb41ee0f7f77f1e74562a888f))
+
 ## [1.3.0](https://github.com/marciotoze/ex_aws_configurator/compare/v1.2.0...v1.3.0) (2021-10-22)
 
 
