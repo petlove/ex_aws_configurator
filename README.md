@@ -17,7 +17,7 @@ The package can be installed by adding jason to your list of dependencies in mix
 ```elixir
 def deps do
   [
-    {:ex_aws_configurator, "~> 1.0.2"}
+    {:ex_aws_configurator, "~> 1.4"}
   ]
 end
 ```
