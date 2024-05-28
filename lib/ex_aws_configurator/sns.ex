@@ -56,7 +56,7 @@ defmodule ExAwsConfigurator.SNS do
   @doc """
     Publish an message to a topic based on clan configuration
   """
-  @spec publish(atom, atom) :: {:ok, term} | {:error, term}
+  @spec publish(atom, map) :: {:ok, term} | {:error, term}
   def publish(topic_name, message) when is_atom(topic_name) do
     topic = ExAwsConfigurator.get_topic(topic_name)
 
