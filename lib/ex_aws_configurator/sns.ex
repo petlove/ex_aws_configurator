@@ -41,16 +41,30 @@ defmodule ExAwsConfigurator.SNS do
   def create_topic(topic_name) when is_atom(topic_name) do
     topic = ExAwsConfigurator.get_topic(topic_name)
     full_name = Topic.full_name(topic)
+
     attributes =
       topic.attributes
-      |> Map.from_struct
+      |> Map.from_struct()
       |> Enum.reject(fn {key, value} -> key in @fifo_attributes and is_nil(value) end)
 
     Logger.info("Creating topic #{full_name} on #{topic.region}")
 
-    full_name
-    |> SNS.create_topic(attributes)
-    |> ExAws.request(region: topic.region)
+    topic_creation_result =
+      full_name
+      |> SNS.create_topic(attributes)
+      |> ExAws.request(region: topic.region)
+
+    case topic_creation_result do
+      {:ok, _} ->
+        Logger.info("Topic #{full_name} created successfully on #{topic.region}")
+
+      {:error, term} ->
+        Logger.error(
+          "Error creating topic #{full_name} on #{topic.region}, reason: #{inspect(term)}"
+        )
+    end
+
+    topic_creation_result
   end
 
   @doc """
