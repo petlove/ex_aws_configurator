@@ -9,3 +9,15 @@ defmodule ExAwsConfigurator.NoResultsError do
     "not found any configuration with key #{name}"
   end
 end
+
+defmodule ExAwsConfigurator.SetupError do
+  defexception [:type, :message]
+
+  def message(%{type: :topics}),
+    do:
+      "something went wrong when creating the topics, ensure that the credentials have the necessary permissions to perform this operation"
+
+  def message(%{type: :queues}),
+    do:
+      "something went wrong when creating the queues, ensure that the credentials have the necessary permissions to perform this operation in addition to being able to subscribe to topics"
+end

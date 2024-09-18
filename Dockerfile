@@ -13,6 +13,13 @@ COPY . /app
 
 RUN mix do local.hex --force, local.rebar --force, deps.get
 
+# DEV
+FROM base AS dev
+
+ENV EX_AWS_HOST="localstack"
+
+RUN apk add --update --no-cache curl
+
 # TEST
 FROM base as test
 ENV MIX_ENV=test

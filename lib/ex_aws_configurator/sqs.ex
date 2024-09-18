@@ -95,7 +95,25 @@ defmodule ExAwsConfigurator.SQS do
     }
     """)
 
-    create_queue_on_sqs(full_name, queue, tags)
+    queue_creation_result = create_queue_on_sqs(full_name, queue, tags)
+
+    case queue_creation_result do
+      {:ok, _} ->
+        Logger.info(~s"""
+        \n\n  #{IO.ANSI.green()}Queue #{full_name} created successfully on #{queue.region}#{
+          IO.ANSI.reset()
+        }
+        """)
+
+      {:error, term} ->
+        Logger.error(~s"""
+        \n\n  #{IO.ANSI.red()}Error creating queue #{full_name} on #{queue.region}, reason: #{
+          inspect(term)
+        }#{IO.ANSI.reset()}
+        """)
+    end
+
+    queue_creation_result
   end
 
   @doc """

@@ -7,12 +7,12 @@ config :ex_aws,
 
 config :ex_aws, :sns,
   scheme: "http://",
-  host: "localhost",
+  host: System.get_env("EX_AWS_HOST", "localhost"),
   port: 4566
 
 config :ex_aws, :sqs,
   scheme: "http://",
-  host: "localhost",
+  host: System.get_env("EX_AWS_HOST", "localhost"),
   port: 4566
 
 config :ex_aws_configurator,

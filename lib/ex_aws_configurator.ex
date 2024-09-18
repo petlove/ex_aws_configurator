@@ -25,15 +25,59 @@ defmodule ExAwsConfigurator do
     topics = get_env(:topics)
     queues = get_env(:queues)
 
-    Enum.each(topics, fn {key, _} ->
-      SNS.create_topic(key)
-    end)
+    topics_not_created =
+      Enum.reduce(topics, [], fn {key, _}, acc ->
+        case SNS.create_topic(key) do
+          {:ok, _} ->
+            acc
 
-    Enum.each(queues, fn {queue_name, queue_config} ->
-      SQS.create_queue(queue_name)
+          {:error, _} ->
+            [key | acc]
+        end
+      end)
 
-      Enum.each(queue_config[:topics], &SQS.subscribe(queue_name, &1))
-    end)
+    queues_not_created =
+      Enum.reduce(queues, [], fn {queue_name, queue_config}, acc ->
+        case SQS.create_queue(queue_name) do
+          {:ok, _} ->
+            Enum.each(queue_config[:topics], &SQS.subscribe(queue_name, &1))
+            acc
+
+          {:error, _} ->
+            [queue_name | acc]
+        end
+      end)
+
+    cond do
+      length(topics_not_created) > 0 ->
+        Logger.error("Some topics was not created: #{inspect(topics_not_created)}")
+        {:error, :topics}
+
+      length(queues_not_created) > 0 ->
+        Logger.error("Some queues was not created: #{inspect(queues_not_created)}")
+        {:error, :queues}
+
+      true ->
+        :ok
+    end
+  end
+
+  @doc """
+  Create all topics, create all queue and all subscrition present into configuration,
+  can raise an exception in case of error.
+
+  We recommended that use this only if you change some configuration, however you can add this
+  method to trigger by CI ever deploy
+  """
+  @spec setup!() :: :ok | no_return
+  def setup! do
+    case setup() do
+      {:error, type} ->
+        raise ExAwsConfigurator.SetupError, type: type
+
+      :ok ->
+        :ok
+    end
   end
 
   @doc """

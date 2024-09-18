@@ -1,6 +1,8 @@
 defmodule ExAwsConfigurator.SQSTest do
   use ExAwsConfigurator.Case
 
+  import ExUnit.CaptureLog
+
   alias ExAwsConfigurator.{Queue, SNS, SQS}
 
   doctest SQS
@@ -12,6 +14,7 @@ defmodule ExAwsConfigurator.SQSTest do
     add_queue_to_config(%{queue_min_config: %{}})
     add_topic_to_config(build(:topic_config, name: :topic_name))
     add_queue_to_config(build(:queue_config, name: :raw_queue, raw_message_delivery: true))
+    add_queue_to_config(build(:queue_config, name: :"!nv@l!d-N@me"))
 
     add_queue_to_config(
       build(:queue_config,
@@ -34,24 +37,40 @@ defmodule ExAwsConfigurator.SQSTest do
 
   describe "create_queue/1" do
     test "create queue when receive a atom with correct configuration" do
-      assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_name)
+      assert capture_log(fn ->
+               assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_name)
+             end) =~ "created successfully"
     end
 
     test "create queue without dead letter queue" do
-      assert {:ok, %{status_code: 200}} = SQS.create_queue(:without_failures_queue)
+      assert capture_log(fn ->
+               assert {:ok, %{status_code: 200}} = SQS.create_queue(:without_failures_queue)
+             end) =~ "created successfully"
     end
 
     test "create queue with min attributes" do
-      assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_min_config)
+      assert capture_log(fn ->
+               assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_min_config)
+             end) =~ "created successfully"
     end
 
     test "create a fifo queue" do
-      assert {:ok, %{status_code: 200}} = SQS.create_queue(:"queue.fifo")
+      assert capture_log(fn ->
+               assert {:ok, %{status_code: 200}} = SQS.create_queue(:"queue.fifo")
 
-      queue = ExAwsConfigurator.get_queue(:"queue.fifo")
+               queue = ExAwsConfigurator.get_queue(:"queue.fifo")
 
-      assert %{attributes: %{content_based_deduplication: true, fifo_queue: true}} = queue
-      assert Queue.full_name(queue) == "prefix_test_queue.fifo"
+               assert %{attributes: %{content_based_deduplication: true, fifo_queue: true}} =
+                        queue
+
+               assert Queue.full_name(queue) == "prefix_test_queue.fifo"
+             end) =~ "created successfully"
+    end
+
+    test "do not create an invalid queue" do
+      assert capture_log(fn ->
+               assert {:error, _} = SQS.create_queue(:"!nv@l!d-N@me")
+             end) =~ "Error creating queue"
     end
 
     test "raise when tries to create a queue without configuration" do
@@ -89,7 +108,7 @@ defmodule ExAwsConfigurator.SQSTest do
     end
 
     test "public an message to an non existent queue" do
-      assert {:error, {:http_error, _, %{code: "QueueDoesNotExist"}}} =
+      assert {:error, {:http_error, _, %{code: "AWS.SimpleQueueService.NonExistentQueue"}}} =
                SQS.send_message(:non_created_queue, "message")
     end
 

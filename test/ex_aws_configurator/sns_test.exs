@@ -1,6 +1,8 @@
 defmodule ExAwsConfigurator.SNSTest do
   use ExAwsConfigurator.Case
 
+  import ExUnit.CaptureLog
+
   alias ExAwsConfigurator.SNS
 
   doctest SNS
@@ -10,6 +12,7 @@ defmodule ExAwsConfigurator.SNSTest do
   setup do
     add_topic_to_config(build(:topic_config, name: :topic_name))
     add_topic_to_config(%{topic_min_config: %{}})
+    add_topic_to_config(%{:"!nv@l!d-N@me" => %{}})
 
     SNS.create_topic(:topic_min_config)
     SNS.create_topic(:topic_name)
@@ -19,11 +22,21 @@ defmodule ExAwsConfigurator.SNSTest do
 
   describe "create_topic/1" do
     test "create topic when receive a atom with correct configuration" do
-      assert {:ok, %{status_code: 200}} = SNS.create_topic(:topic_name)
+      assert capture_log(fn ->
+               assert {:ok, %{status_code: 200}} = SNS.create_topic(:topic_name)
+             end) =~ "created successfully"
     end
 
     test "create topic with min attributes" do
-      assert {:ok, %{status_code: 200}} = SNS.create_topic(:topic_min_config)
+      assert capture_log(fn ->
+               assert {:ok, %{status_code: 200}} = SNS.create_topic(:topic_min_config)
+             end) =~ "created successfully"
+    end
+
+    test "do not create an invalid topic" do
+      assert capture_log(fn ->
+               assert {:error, _} = SNS.create_topic(:"!nv@l!d-N@me")
+             end) =~ "Error creating topic"
     end
 
     test "raise when tries to create a topic without configuration" do

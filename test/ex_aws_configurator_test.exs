@@ -13,7 +13,9 @@ defmodule ExAwsConfiguratorTest do
         {
           :ex_aws_configurator,
           [
+            environment: :test,
             account_id: "000000000000",
+            region: "us-east-1",
             queues: %{
               an_queue: %{
                 environment: "test",
@@ -24,7 +26,7 @@ defmodule ExAwsConfiguratorTest do
             },
             topics: %{
               an_topic: %{environment: "test", prefix: "prefix", region: "us-east-1"},
-              another_topic: %{environment: "teste", prefix: "prefixo", region: "sa-east-1"}
+              another_topic: %{environment: nil, region: "sa-east-1"}
             }
           ]
         }
@@ -33,6 +35,97 @@ defmodule ExAwsConfiguratorTest do
       Application.put_all_env(config)
 
       assert :ok == ExAwsConfigurator.setup()
+    end
+  end
+
+  describe "setup!/0" do
+    test "not raise an error when everything goes as it should" do
+      config = [
+        {
+          :ex_aws_configurator,
+          [
+            environment: :test,
+            account_id: "000000000000",
+            region: "us-east-1",
+            queues: %{
+              an_queue: %{
+                environment: "test",
+                prefix: "prefix",
+                region: "us-east-1",
+                topics: [:an_topic, :another_topic]
+              }
+            },
+            topics: %{
+              an_topic: %{environment: "test", prefix: "prefix", region: "us-east-1"},
+              another_topic: %{environment: nil, region: "sa-east-1"}
+            }
+          ]
+        }
+      ]
+
+      Application.put_all_env(config)
+
+      assert :ok == ExAwsConfigurator.setup!()
+    end
+
+    test "when something goes wrong when creating the topics, it is expected to raise appropriate error" do
+      config = [
+        {
+          :ex_aws_configurator,
+          [
+            environment: :test,
+            account_id: "000000000000",
+            region: "us-east-1",
+            # Not relevent for this test
+            queues: %{},
+            topics: %{
+              :"&invalid-topic-n@-m{e}" => %{
+                environment: "test",
+                prefix: "prefix",
+                region: "us-east-1"
+              }
+            }
+          ]
+        }
+      ]
+
+      Application.put_all_env(config)
+
+      assert_raise ExAwsConfigurator.SetupError,
+                   ~r/something went wrong when creating the topics/,
+                   fn ->
+                     ExAwsConfigurator.setup!()
+                   end
+    end
+
+    test "when something goes wrong when creating the queues, it is expected to raise appropriate error" do
+      config = [
+        {
+          :ex_aws_configurator,
+          [
+            environment: :test,
+            account_id: "000000000000",
+            region: "us-east-1",
+            queues: %{
+              :"&invalid-queue-n@-m{e}" => %{
+                environment: "test",
+                prefix: "prefix",
+                region: "us-east-1"
+              }
+            },
+            # Not relevent for this test
+            topics: %{}
+          ]
+        }
+      ]
+
+      Application.put_all_env(config)
+
+      assert_raise ExAwsConfigurator.SetupError,
+                   ~r/something went wrong when creating the queues/,
+                   fn ->
+                     ExAwsConfigurator.setup!()
+                   end
     end
   end
 

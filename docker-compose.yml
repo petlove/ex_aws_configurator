@@ -9,3 +9,14 @@ services:
       - "4571:4571"
     environment:
       - SERVICES=sns,sqs
+
+  lib:
+    container_name: ex_aws_configurator_lib
+    depends_on:
+      - localstack
+    volumes:
+      - .:/app
+    build:
+      context: .
+      target: dev
+    command: tail -f /dev/null
