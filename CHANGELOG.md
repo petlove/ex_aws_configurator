@@ -4,14 +4,14 @@
 
 ### Bug Fixes
 
-* returns the actual result for creating aws queues and topics (#12 (https://github.com/petlove/ex_aws_configurator/issues/12)) (04b915f (https://github.com/petlove/ex_aws_configurator/commit/04b915fedc17b1122e7880f75915d7ac5d164ce5))
+* returns the actual result for creating aws queues and topics ([#12](https://github.com/petlove/ex_aws_configurator/issues/12)) ([04b915f](https://github.com/petlove/ex_aws_configurator/commit/04b915fedc17b1122e7880f75915d7ac5d164ce5))
 
 ## [1.4.0](https://github.com/marciotoze/ex_aws_configurator/compare/v1.3.0...v1.4.0) (2022-03-25)
 
 
 ### Features
 
-* add creation of fifo topics (4dbc34e (https://github.com/marciotoze/ex_aws_configurator/commit/4dbc34e9f9bdbc8bb41ee0f7f77f1e74562a888f))
+* add creation of fifo topics ([4dbc34e](https://github.com/marciotoze/ex_aws_configurator/commit/4dbc34e9f9bdbc8bb41ee0f7f77f1e74562a888f))
 
 ## [1.3.0](https://github.com/marciotoze/ex_aws_configurator/compare/v1.2.0...v1.3.0) (2021-10-22)
 
