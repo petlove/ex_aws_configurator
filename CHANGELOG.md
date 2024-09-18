@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [1.4.1](https://github.com/petlove/ex_aws_configurator/compare/v1.4.0...v1.4.1) (2024-09-18)
+
+### Bug Fixes
+
+* returns the actual result for creating aws queues and topics (#12 (https://github.com/petlove/ex_aws_configurator/issues/12)) (04b915f (https://github.com/petlove/ex_aws_configurator/commit/04b915fedc17b1122e7880f75915d7ac5d164ce5))
+
 ## [1.4.0](https://github.com/marciotoze/ex_aws_configurator/compare/v1.3.0...v1.4.0) (2022-03-25)
 
 
