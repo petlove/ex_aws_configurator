@@ -20,7 +20,7 @@ defmodule ExAwsConfigurator.MixProject do
       package: package(),
       name: "ExAwsConfigurator",
       description: "A json based SNS/SQS configurator for elixir/phoenix projects",
-      source_url: "https://github.com/marciotoze/ex_aws_configurator",
+      source_url: "https://github.com/petlove/ex_aws_configurator",
       elixirc_paths: elixirc_paths(Mix.env()),
       docs: [
         source_ref: Mix.Project.config()[:version],
@@ -74,7 +74,7 @@ defmodule ExAwsConfigurator.MixProject do
     [
       name: :ex_aws_configurator,
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/marciotoze/ex_aws_configurator"},
+      links: %{"GitHub" => "https://github.com/petlove/ex_aws_configurator"},
       files: ~w(lib .formatter.exs mix.exs README* LICENSE* CHANGELOG* VERSION*)
     ]
   end
