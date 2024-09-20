@@ -41,6 +41,17 @@ defmodule ExAwsConfigurator.MixProject do
         account_id: {:system, "AWS_ACCOUNT_ID"},
         queues: %{},
         topics: %{}
+      ],
+      # test_coverage: [tool: LcovEx, output: "cover", ignore_paths: ["test"]],
+      test_coverage: [tool: ExCoveralls, export: "cov"],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test,
+        "coveralls.lcov": :test,
+        "coveralls.cobertura": :test
       ]
     ]
   end
@@ -62,7 +73,8 @@ defmodule ExAwsConfigurator.MixProject do
       {:ex_aws_sqs, "~> 3.2"},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:ex_machina, "~> 2.5.0", only: [:dev, :test]},
-      {:excoveralls, "~> 0.10", only: :test},
+      {:excoveralls, "~> 0.18.3", only: [:dev, :test], runtime: false},
+      # {:lcov_ex, "~> 0.3", only: [:dev, :test], runtime: false},
       {:hackney, "~> 1.9"},
       {:jason, "~> 1.2"},
       {:sweet_xml, "~> 0.6"},
