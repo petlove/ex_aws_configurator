@@ -12,7 +12,7 @@
     "@semantic-release/exec": "^5.0.0",
     "@semantic-release/git": "^9.0.0",
     "@semantic-release/github": "^7.0.4",
-    "semantic-release": "^17.0.3",
+    "semantic-release": "^19.0.3",
     "semantic-release-upload-gcr": "^2.0.3"
   }
 }
