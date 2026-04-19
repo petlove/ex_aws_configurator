@@ -1,19 +1,16 @@
-version: '3.7'
-
 services:
-  localstack:
-    container_name: ex_aws_configurator_localstack
-    image: localstack/localstack
+  moto:
+    container_name: ex_aws_configurator_moto
+    image: motoserver/moto:4.2.14
     ports:
-      - "4566:4566"
-      - "4571:4571"
+      - "4566:5000"
     environment:
-      - SERVICES=sns,sqs
+      - MOTO_PORT=5000
 
   lib:
     container_name: ex_aws_configurator_lib
     depends_on:
-      - localstack
+      - moto
     volumes:
       - .:/app
     build:
