@@ -1,165 +1,198 @@
 defmodule ExAwsConfigurator do
   @moduledoc """
-  Documentation for `ExAwsConfigurator`.
+  Public API for publishing to SNS topics and sending to SQS queues using the
+  logical names declared in application config.
+
+  The Bootstrapper resolves each logical name (`:orders`, `:orders_events`,
+  etc.) into a concrete ARN/URL at boot; these functions simply look up the
+  resolved value in the Registry and delegate to the AWS wrapper.
+
+  ## Payloads
+
+  Binary payloads pass through untouched. Anything else is JSON-encoded with
+  `Jason`. Callers that need a different encoding should encode before calling.
+
+  ## FIFO
+
+  FIFO topics/queues require `:message_group_id` in the `opts` — we raise
+  `ArgumentError` at the call site rather than letting AWS reject the request.
+  `:message_deduplication_id` is not validated locally (AWS enforces it based
+  on `content_based_deduplication`).
+
+  ## Telemetry
+
+  Four spans are emitted, each with `:start`, `:stop` and `:exception` events:
+
+    * `[:ex_aws_configurator, :publish]`
+    * `[:ex_aws_configurator, :send_to_queue]`
+    * `[:ex_aws_configurator, :publish_batch]`
+    * `[:ex_aws_configurator, :send_to_queue_batch]`
+
+  `:start` metadata carries the logical name; `:stop` adds `:message_id` on
+  success or `:error` on failure.
   """
 
-  require Logger
+  alias ExAwsConfigurator.Aws.{Sns, Sqs}
+  alias ExAwsConfigurator.{Bootstrapper, Registry, Resolved}
 
-  alias ExAwsConfigurator.{
-    Queue,
-    QueueAttributes,
-    QueueOptions,
-    SNS,
-    SQS,
-    Topic,
-    TopicAttributes
-  }
+  @type payload :: term()
+  @type batch_entry :: %{required(:payload) => payload(), optional(atom()) => term()}
 
   @doc """
-  Create all topics, create all queue and all subscrition present into configuration
+  Run the provisioning pipeline from code.
 
-  We recommended that use this only if you change some configuration, however you can add this
-  method to trigger by CI ever deploy
+  Equivalent to `mix ex_aws_configurator.setup`, but callable from Elixir — use
+  this from a release boot script, a migration-like task, or any context where
+  you want explicit control instead of (or in addition to) the automatic boot
+  bootstrapper.
+
+  Idempotent: re-running it against already-provisioned AWS resources is a
+  no-op apart from the `SetQueueAttributes` / `SetQueuePolicy` calls that
+  reconcile drift. Raises if anything fails.
   """
-  def setup do
-    topics = get_env(:topics)
-    queues = get_env(:queues)
+  @spec setup!() :: Resolved.t()
+  defdelegate setup!(), to: Bootstrapper, as: :run!
 
-    topics_not_created =
-      Enum.reduce(topics, [], fn {key, _}, acc ->
-        case SNS.create_topic(key) do
-          {:ok, _} ->
-            acc
+  @doc """
+  Publish a single message to an SNS topic by logical name.
+  """
+  @spec publish(atom(), payload(), keyword()) ::
+          {:ok, String.t()} | {:error, term()}
+  def publish(topic_name, payload, opts \\ []) when is_atom(topic_name) do
+    arn = Registry.topic_arn!(topic_name)
+    topic = topic_by_name(topic_name)
+    validate_fifo!(topic, opts, topic_name)
 
-          {:error, _} ->
-            [key | acc]
+    message = encode(payload)
+
+    :telemetry.span(
+      [:ex_aws_configurator, :publish],
+      %{topic: topic_name},
+      fn ->
+        case Sns.publish(arn, message, opts) do
+          {:ok, id} = ok -> {ok, %{topic: topic_name, message_id: id}}
+          {:error, reason} = err -> {err, %{topic: topic_name, error: reason}}
         end
-      end)
+      end
+    )
+  end
 
-    queues_not_created =
-      Enum.reduce(queues, [], fn {queue_name, queue_config}, acc ->
-        case SQS.create_queue(queue_name) do
-          {:ok, _} ->
-            Enum.each(queue_config[:topics], &SQS.subscribe(queue_name, &1))
-            acc
+  @doc """
+  Send a single message to an SQS queue by logical name.
+  """
+  @spec send_to_queue(atom(), payload(), keyword()) ::
+          {:ok, String.t()} | {:error, term()}
+  def send_to_queue(queue_name, payload, opts \\ []) when is_atom(queue_name) do
+    queue = Registry.queue!(queue_name)
+    validate_fifo!(queue, opts, queue_name)
 
-          {:error, _} ->
-            [queue_name | acc]
+    message = encode(payload)
+
+    :telemetry.span(
+      [:ex_aws_configurator, :send_to_queue],
+      %{queue: queue_name},
+      fn ->
+        case Sqs.send_message(queue.url, message, opts) do
+          {:ok, id} = ok -> {ok, %{queue: queue_name, message_id: id}}
+          {:error, reason} = err -> {err, %{queue: queue_name, error: reason}}
         end
-      end)
-
-    cond do
-      length(topics_not_created) > 0 ->
-        Logger.error("Some topics was not created: #{inspect(topics_not_created)}")
-        {:error, :topics}
-
-      length(queues_not_created) > 0 ->
-        Logger.error("Some queues was not created: #{inspect(queues_not_created)}")
-        {:error, :queues}
-
-      true ->
-        :ok
-    end
+      end
+    )
   end
 
   @doc """
-  Create all topics, create all queue and all subscrition present into configuration,
-  can raise an exception in case of error.
+  Publish a batch of messages to an SNS topic.
 
-  We recommended that use this only if you change some configuration, however you can add this
-  method to trigger by CI ever deploy
+  Each entry is a map with at minimum `:payload`; optional keys include `:id`
+  (auto-generated if absent), `:message_group_id`, `:message_deduplication_id`,
+  `:message_attributes`, `:subject`.
+
+  Returns `{:ok, %{successful: [...], failed: [...]}}` — AWS reports partial
+  success at the entry level, so the caller must inspect both lists.
   """
-  @spec setup!() :: :ok | no_return
-  def setup! do
-    case setup() do
-      {:error, type} ->
-        raise ExAwsConfigurator.SetupError, type: type
+  @spec publish_batch(atom(), [batch_entry()]) ::
+          {:ok, map()} | {:error, term()}
+  def publish_batch(topic_name, entries) when is_atom(topic_name) and is_list(entries) do
+    arn = Registry.topic_arn!(topic_name)
+    aws_entries = normalize_batch(entries, :message)
 
-      :ok ->
-        :ok
-    end
+    :telemetry.span(
+      [:ex_aws_configurator, :publish_batch],
+      %{topic: topic_name, count: length(entries)},
+      fn ->
+        case Sns.publish_batch(arn, aws_entries) do
+          {:ok, _} = ok -> {ok, %{topic: topic_name, count: length(entries)}}
+          {:error, reason} = err -> {err, %{topic: topic_name, error: reason}}
+        end
+      end
+    )
   end
 
   @doc """
-  Fetch queue configurations specific to the :ex_aws_configurator application.
-
-  raises `ExAwsConfigurator.NoResultsError` if no configuration was found.
-
-  ## Example
-
-      ExAwsConfigurator.get_queue(:queue_name)
-      #=> %Queue{region: us-east-1, ...}
-
-      ExAwsConfigurator.get_queue(:not_exist)
-      #=> ** (ExAwsConfigurator.NoResultsError) the configuration for queue not_exist is not set
+  Send a batch of messages to an SQS queue. Entry shape matches `publish_batch/2`
+  except that the AWS field is `message_body` — callers still pass `:payload`.
   """
-  @spec get_queue(atom) :: Queue.t()
-  def get_queue(queue_name) when is_atom(queue_name) do
-    case Map.fetch(get_env(:queues), queue_name) do
-      {:ok, value} ->
-        queue =
-          %Queue{name: queue_name}
-          |> struct(%{
-            environment: Application.get_env(:ex_aws_configurator, :environment),
-            region: Application.get_env(:ex_aws_configurator, :region)
-          })
-          |> struct(value)
-          |> struct(%{topics: Enum.map(Map.get(value, :topics, []), &get_topic/1)})
+  @spec send_to_queue_batch(atom(), [batch_entry()]) ::
+          {:ok, map()} | {:error, term()}
+  def send_to_queue_batch(queue_name, entries) when is_atom(queue_name) and is_list(entries) do
+    queue = Registry.queue!(queue_name)
+    aws_entries = normalize_batch(entries, :message_body)
 
-        queue
-        |> struct(%{options: struct(%QueueOptions{}, Map.get(value, :options, []))})
-        |> struct(%{
-          attributes:
-            struct(%QueueAttributes{policy: Queue.policy(queue)}, Map.get(value, :attributes, []))
-        })
-
-      :error ->
-        raise ExAwsConfigurator.NoResultsError, type: :queue, name: queue_name
-    end
+    :telemetry.span(
+      [:ex_aws_configurator, :send_to_queue_batch],
+      %{queue: queue_name, count: length(entries)},
+      fn ->
+        case Sqs.send_message_batch(queue.url, aws_entries) do
+          {:ok, _} = ok -> {ok, %{queue: queue_name, count: length(entries)}}
+          {:error, reason} = err -> {err, %{queue: queue_name, error: reason}}
+        end
+      end
+    )
   end
 
-  @doc """
-  Fetch topic configurations specific to the :ex_aws_configurator application.
+  # --- helpers -------------------------------------------------------------
 
-  raises `ExAwsConfigurator.NoResultsError` if no configuration was found.
+  defp encode(payload) when is_binary(payload), do: payload
+  defp encode(payload), do: Jason.encode!(payload)
 
-  ## Example
+  defp normalize_batch(entries, payload_key) do
+    entries
+    |> Enum.with_index()
+    |> Enum.map(fn {entry, i} ->
+      payload =
+        case Map.fetch(entry, :payload) do
+          {:ok, p} -> p
+          :error -> raise ArgumentError, "batch entry missing :payload key"
+        end
 
-      ExAwsConfigurator.get_topic(queue_name)
-      #=> %Topic{region: us-east-1, ...}
-
-      ExAwsConfigurator.get_topic(:not_exist)
-      #=> ** (ExAwsConfigurator.NoResultsError) the configuration for topic not_exist is not set
-  """
-  @spec get_topic(atom) :: any | no_return
-  def get_topic(topic_name) when is_atom(topic_name) do
-    case Map.fetch(get_env(:topics), topic_name) do
-      {:ok, value} ->
-        %Topic{name: topic_name}
-        |> struct(%{
-          environment: Application.get_env(:ex_aws_configurator, :environment),
-          region: Application.get_env(:ex_aws_configurator, :region)
-        })
-        |> struct(value)
-        |> struct(%{attributes: struct(%TopicAttributes{}, Map.get(value, :attributes, []))})
-
-      :error ->
-        raise ExAwsConfigurator.NoResultsError, type: :topic, name: topic_name
-    end
+      entry
+      |> Map.delete(:payload)
+      |> Map.put(payload_key, encode(payload))
+      |> Map.put_new(:id, "msg_#{i}")
+    end)
   end
 
-  @doc false
-  @spec get_env(atom) :: any | no_return
-  def get_env(key) when is_atom(key) do
-    case Application.fetch_env(:ex_aws_configurator, key) do
-      {:ok, {:system, var}} when is_binary(var) ->
-        System.get_env(var)
+  defp topic_by_name(name) do
+    resolved = Registry.resolved!()
+    Map.get(resolved.topics, name) || Map.get(resolved.external_topics, name) ||
+      raise ArgumentError, "unknown topic #{inspect(name)}"
+  end
 
-      {:ok, value} ->
-        value
+  defp validate_fifo!(%Resolved.Topic{config: %{fifo: true}}, opts, name),
+    do: require_group_id!(opts, name)
 
-      :error ->
-        raise ExAwsConfigurator.NoResultsError, name: key
+  defp validate_fifo!(%Resolved.ExternalTopic{config: %{fifo: true}}, opts, name),
+    do: require_group_id!(opts, name)
+
+  defp validate_fifo!(%Resolved.Queue{config: %{fifo: true}}, opts, name),
+    do: require_group_id!(opts, name)
+
+  defp validate_fifo!(_, _, _), do: :ok
+
+  defp require_group_id!(opts, name) do
+    unless Keyword.has_key?(opts, :message_group_id) do
+      raise ArgumentError,
+            "FIFO #{inspect(name)} requires :message_group_id in opts"
     end
   end
 end

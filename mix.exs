@@ -5,7 +5,7 @@ defmodule ExAwsConfigurator.MixProject do
     [
       app: :ex_aws_configurator,
       version: get_version(),
-      elixir: "~> 1.10",
+      elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
@@ -37,11 +37,7 @@ defmodule ExAwsConfigurator.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      env: [
-        account_id: {:system, "AWS_ACCOUNT_ID"},
-        queues: %{},
-        topics: %{}
-      ]
+      mod: {ExAwsConfigurator.Application, []}
     ]
   end
 
@@ -55,18 +51,20 @@ defmodule ExAwsConfigurator.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.0", only: :dev, runtime: false},
-      {:ex_aws, "~> 2.0"},
-      {:ex_aws_sns, "~> 2.2"},
-      {:ex_aws_sqs, "~> 3.2"},
-      {:ex_doc, "~> 0.23", only: :dev, runtime: false},
-      {:ex_machina, "~> 2.5.0", only: [:dev, :test]},
-      {:excoveralls, "~> 0.10", only: :test},
-      {:hackney, "~> 1.9"},
-      {:jason, "~> 1.2"},
-      {:sweet_xml, "~> 0.6"},
-      {:vex, "~> 0.8.0"}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: :dev, runtime: false},
+      {:ex_aws, "~> 2.6"},
+      {:ex_aws_sns, "~> 2.3"},
+      {:ex_aws_sqs, "~> 3.4"},
+      {:ex_aws_sts, "~> 2.3"},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
+      {:ex_machina, "~> 2.8", only: [:dev, :test]},
+      {:excoveralls, "~> 0.18", only: :test},
+      {:hackney, "~> 1.20"},
+      {:jason, "~> 1.4"},
+      {:mox, "~> 1.2", only: :test},
+      {:sweet_xml, "~> 0.7"},
+      {:telemetry, "~> 1.3"}
     ]
   end
 
