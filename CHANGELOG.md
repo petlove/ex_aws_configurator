@@ -1,5 +1,61 @@
 # CHANGELOG
 
+## [2.0.0](https://github.com/petlove/ex_aws_configurator/compare/v1.4.1...v2.0.0) (2026-04-18)
+
+Full rewrite. No backwards compatibility with 1.x — see the migration section
+in the README and the detector in `ExAwsConfigurator.Config` which refuses to
+start the app with a v1-shape config and prints a migration guide.
+
+### Features
+
+* **Auto-provisioning on boot.** A supervised one-shot bootstrapper reconciles
+  topics, queues, DLQs, policies and subscriptions on every app start. Runs
+  idempotently; fails fast if AWS is unreachable or the config is invalid.
+* **Declarative config as data.** `topics`, `external_topics` and `queues` are
+  flat lists of maps with explicit `:name` — no more atom-keyed nested maps.
+* **First-class `external_topics`.** Topics owned by other services are
+  declared separately. The library builds their ARN (inferring region and
+  account_id from the current AWS identity, or accepting explicit overrides)
+  and subscribes local queues to them without trying to create them.
+* **Identity resolution via STS.** `:account_id` and `:region` are resolved at
+  boot from `sts:GetCallerIdentity` and cached in `:persistent_term`. Config
+  no longer needs them.
+* **Logical-name publish API.**
+  `ExAwsConfigurator.publish(:orders, payload, opts)` and
+  `ExAwsConfigurator.send_to_queue(:orders_events, payload, opts)` with
+  O(1) ARN/URL lookup from `:persistent_term`. Non-binary payloads are
+  auto-encoded with Jason.
+* **Batch APIs.** `publish_batch/2` and `send_to_queue_batch/2` accept
+  `[%{payload: ..., message_group_id: ..., ...}]` and surface AWS's partial
+  successes/failures.
+* **FIFO support.** `fifo: true` on a topic or queue appends `.fifo` to the
+  AWS name and enforces `:message_group_id` at publish/send time. DLQs
+  inherit FIFO-ness from their parent.
+* **Custom queue policy.** An optional 1-arity `:policy` function on a queue
+  fully replaces the generated SNS → SQS statement when the default is not
+  enough.
+* **Telemetry.** Four spans emitted:
+  `[:ex_aws_configurator, :publish | :send_to_queue | :publish_batch |
+  :send_to_queue_batch]`, each with `:start`, `:stop`, `:exception`.
+* **`mix ex_aws_configurator.setup`.** Runs the same pipeline standalone for
+  use in deploy steps before the app starts.
+* **Mox-friendly boundaries.** `Aws.Sns`, `Aws.Sqs` and `Aws.Identity` are
+  behaviours — test suites stub them via Mox instead of hitting AWS
+  (LocalStack is no longer required).
+
+### Removed
+
+* `ExAwsConfigurator.setup/0` / `setup!/0` — replaced by the supervised
+  bootstrapper and the `mix ex_aws_configurator.setup` task.
+* `ExAwsConfigurator.get_queue/1`, `get_topic/1` — internal helpers; use
+  the Publisher API instead.
+* `ExAwsConfigurator.SNS.*`, `ExAwsConfigurator.SQS.*` — collapsed into the
+  `Ensure.*` pipeline and `Aws.{Sns,Sqs}` wrappers.
+* Per-queue `:prefix`, `:environment`, `:region`, nested `:attributes` and
+  `:options`, top-level `:account_id`, `:environment` — see migration guide.
+* In-memory URL/ARN cache (`ExAwsConfigurator.Cache`) — superseded by the
+  Registry backed by `:persistent_term`.
+
 ## [1.4.1](https://github.com/petlove/ex_aws_configurator/compare/v1.4.0...v1.4.1) (2024-09-18)
 
 ### Bug Fixes
