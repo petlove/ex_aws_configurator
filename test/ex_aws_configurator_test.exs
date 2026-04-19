@@ -1,170 +1,142 @@
 defmodule ExAwsConfiguratorTest do
-  use ExAwsConfigurator.Case
+  use ExUnit.Case, async: false
 
-  alias ExAwsConfigurator.{Queue, Topic}
+  import Mox
 
-  doctest ExAwsConfigurator
+  alias ExAwsConfigurator.{Config, Registry, Resolver}
+  alias ExAwsConfigurator.Aws.{SnsMock, SqsMock}
 
-  @moduletag capture_log: true
+  def forward_telemetry(_event, measurements, meta, pid) do
+    send(pid, {:tele, measurements, meta})
+  end
 
-  describe "setup/1" do
-    test "setup all environment based on config" do
-      config = [
-        {
-          :ex_aws_configurator,
-          [
-            environment: :test,
-            account_id: "000000000000",
-            region: "us-east-1",
-            queues: %{
-              an_queue: %{
-                environment: "test",
-                prefix: "prefix",
-                region: "us-east-1",
-                topics: [:an_topic, :another_topic]
-              }
-            },
-            topics: %{
-              an_topic: %{environment: "test", prefix: "prefix", region: "us-east-1"},
-              another_topic: %{environment: nil, region: "sa-east-1"}
-            }
-          ]
-        }
+  setup :verify_on_exit!
+
+  setup do
+    raw = [
+      queue_prefix: "billing",
+      topics: [%{name: :orders}, %{name: :orders_fifo, fifo: true}],
+      queues: [
+        %{name: :orders_events, subscribe_to: [:orders]},
+        %{name: :orders_fifo_events, fifo: true, subscribe_to: [:orders_fifo]}
       ]
+    ]
 
-      Application.put_all_env(config)
+    Config.load!(raw)
+    |> Resolver.resolve(%{account_id: "1234", region: "us-east-1"})
+    |> Registry.put!()
 
-      assert :ok == ExAwsConfigurator.setup()
+    on_exit(&Registry.reset/0)
+    :ok
+  end
+
+  describe "publish/3" do
+    test "looks up topic ARN and calls Sns.publish with the encoded payload" do
+      expect(SnsMock, :publish, fn arn, message, _opts ->
+        assert arn == "arn:aws:sns:us-east-1:1234:billing_orders"
+        assert message == ~s({"id":1})
+        {:ok, "msg-1"}
+      end)
+
+      assert {:ok, "msg-1"} = ExAwsConfigurator.publish(:orders, %{id: 1})
+    end
+
+    test "passes binary payload through untouched" do
+      expect(SnsMock, :publish, fn _, "raw", _ -> {:ok, "id"} end)
+      assert {:ok, "id"} = ExAwsConfigurator.publish(:orders, "raw")
+    end
+
+    test "raises for unknown topic" do
+      assert_raise ArgumentError, ~r/unknown topic/, fn ->
+        ExAwsConfigurator.publish(:nope, "x")
+      end
+    end
+
+    test "raises when FIFO topic misses :message_group_id" do
+      assert_raise ArgumentError, ~r/FIFO.*:message_group_id/, fn ->
+        ExAwsConfigurator.publish(:orders_fifo, "x")
+      end
+    end
+
+    test "FIFO passes when :message_group_id is present" do
+      expect(SnsMock, :publish, fn _arn, _msg, opts ->
+        assert Keyword.fetch!(opts, :message_group_id) == "g1"
+        {:ok, "id"}
+      end)
+
+      assert {:ok, "id"} =
+               ExAwsConfigurator.publish(:orders_fifo, "x", message_group_id: "g1")
+    end
+
+    test "emits telemetry :stop with :message_id on success" do
+      expect(SnsMock, :publish, fn _, _, _ -> {:ok, "msg-42"} end)
+
+      :telemetry.attach(
+        "t-1",
+        [:ex_aws_configurator, :publish, :stop],
+        &__MODULE__.forward_telemetry/4,
+        self()
+      )
+
+      ExAwsConfigurator.publish(:orders, "x")
+
+      assert_received {:tele, %{duration: _}, %{topic: :orders, message_id: "msg-42"}}
+      :telemetry.detach("t-1")
     end
   end
 
-  describe "setup!/0" do
-    test "not raise an error when everything goes as it should" do
-      config = [
-        {
-          :ex_aws_configurator,
-          [
-            environment: :test,
-            account_id: "000000000000",
-            region: "us-east-1",
-            queues: %{
-              an_queue: %{
-                environment: "test",
-                prefix: "prefix",
-                region: "us-east-1",
-                topics: [:an_topic, :another_topic]
-              }
-            },
-            topics: %{
-              an_topic: %{environment: "test", prefix: "prefix", region: "us-east-1"},
-              another_topic: %{environment: nil, region: "sa-east-1"}
-            }
-          ]
-        }
-      ]
+  describe "send_to_queue/3" do
+    test "looks up queue URL and calls Sqs.send_message with encoded payload" do
+      expect(SqsMock, :send_message, fn url, message, _opts ->
+        assert url == "https://sqs.us-east-1.amazonaws.com/1234/billing_orders_events"
+        assert message == ~s({"id":2})
+        {:ok, "mid"}
+      end)
 
-      Application.put_all_env(config)
-
-      assert :ok == ExAwsConfigurator.setup!()
+      assert {:ok, "mid"} = ExAwsConfigurator.send_to_queue(:orders_events, %{id: 2})
     end
 
-    test "when something goes wrong when creating the topics, it is expected to raise appropriate error" do
-      config = [
-        {
-          :ex_aws_configurator,
-          [
-            environment: :test,
-            account_id: "000000000000",
-            region: "us-east-1",
-            # Not relevent for this test
-            queues: %{},
-            topics: %{
-              :"&invalid-topic-n@-m{e}" => %{
-                environment: "test",
-                prefix: "prefix",
-                region: "us-east-1"
-              }
-            }
-          ]
-        }
-      ]
-
-      Application.put_all_env(config)
-
-      assert_raise ExAwsConfigurator.SetupError,
-                   ~r/something went wrong when creating the topics/,
-                   fn ->
-                     ExAwsConfigurator.setup!()
-                   end
-    end
-
-    test "when something goes wrong when creating the queues, it is expected to raise appropriate error" do
-      config = [
-        {
-          :ex_aws_configurator,
-          [
-            environment: :test,
-            account_id: "000000000000",
-            region: "us-east-1",
-            queues: %{
-              :"&invalid-queue-n@-m{e}" => %{
-                environment: "test",
-                prefix: "prefix",
-                region: "us-east-1"
-              }
-            },
-            # Not relevent for this test
-            topics: %{}
-          ]
-        }
-      ]
-
-      Application.put_all_env(config)
-
-      assert_raise ExAwsConfigurator.SetupError,
-                   ~r/something went wrong when creating the queues/,
-                   fn ->
-                     ExAwsConfigurator.setup!()
-                   end
-    end
-  end
-
-  describe "get_env/1" do
-    test "get application env value when system env is nil" do
-      Application.put_all_env([{:ex_aws_configurator, [account_id: "000000000000"]}])
-
-      assert "000000000000" = ExAwsConfigurator.get_env(:account_id)
-    end
-
-    test "get system application env when use :system tuple" do
-      System.put_env("ACCOUNT_ID", "123456789101")
-      Application.put_all_env([{:ex_aws_configurator, [account_id: {:system, "ACCOUNT_ID"}]}])
-
-      assert "123456789101" = ExAwsConfigurator.get_env(:account_id)
-
-      Application.put_all_env([{:ex_aws_configurator, [account_id: "000000000000"]}])
-    end
-
-    test "raise specific error when config do not exist" do
-      assert_raise ExAwsConfigurator.NoResultsError, fn ->
-        ExAwsConfigurator.get_env(:wrong)
+    test "raises when FIFO queue misses :message_group_id" do
+      assert_raise ArgumentError, ~r/FIFO.*:message_group_id/, fn ->
+        ExAwsConfigurator.send_to_queue(:orders_fifo_events, "x")
       end
     end
   end
 
-  describe "get_queue/1" do
-    test "get queue configurations" do
-      add_queue_to_config(build(:queue_config, name: :queue_name))
+  describe "publish_batch/2" do
+    test "auto-generates entry ids and encodes payloads" do
+      expect(SnsMock, :publish_batch, fn _arn, entries ->
+        assert [
+                 %{id: "msg_0", message: ~s({"i":1})},
+                 %{id: "msg_1", message: ~s({"i":2}), message_group_id: "g1"}
+               ] = entries
 
-      assert %Queue{name: :queue_name} = ExAwsConfigurator.get_queue(:queue_name)
+        {:ok, %{}}
+      end)
+
+      assert {:ok, _} =
+               ExAwsConfigurator.publish_batch(:orders, [
+                 %{payload: %{i: 1}},
+                 %{payload: %{i: 2}, message_group_id: "g1"}
+               ])
+    end
+
+    test "raises when batch entry is missing :payload" do
+      assert_raise ArgumentError, ~r/missing :payload/, fn ->
+        ExAwsConfigurator.publish_batch(:orders, [%{foo: :bar}])
+      end
     end
   end
 
-  describe "get_topic/1" do
-    test "get topic configurations" do
-      add_topic_to_config(build(:topic_config, name: :topic_name))
+  describe "send_to_queue_batch/2" do
+    test "uses :message_body key for SQS batch entries" do
+      expect(SqsMock, :send_message_batch, fn _url, entries ->
+        assert [%{id: "msg_0", message_body: "hello"}] = entries
+        {:ok, %{}}
+      end)
 
-      assert %Topic{name: :topic_name} = ExAwsConfigurator.get_topic(:topic_name)
+      assert {:ok, _} =
+               ExAwsConfigurator.send_to_queue_batch(:orders_events, [%{payload: "hello"}])
     end
   end
 end

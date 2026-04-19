@@ -1,20 +1,9 @@
-use Mix.Config
+import Config
 
-config :ex_aws,
-  access_key_id: "UNSET",
-  secret_access_key: "UNSET",
-  region: "us-east-1"
-
-config :ex_aws, :sns,
-  scheme: "http://",
-  host: System.get_env("EX_AWS_HOST", "localhost"),
-  port: 4566
-
-config :ex_aws, :sqs,
-  scheme: "http://",
-  host: System.get_env("EX_AWS_HOST", "localhost"),
-  port: 4566
-
+# Tests drive the pipeline explicitly — never auto-run the bootstrapper on app
+# start, or the test process would hit AWS before Mox expectations are set.
 config :ex_aws_configurator,
-  account_id: "000000000000",
-  region: "us-east-1"
+  auto_setup: false,
+  identity_impl: ExAwsConfigurator.Aws.IdentityMock,
+  sns_impl: ExAwsConfigurator.Aws.SnsMock,
+  sqs_impl: ExAwsConfigurator.Aws.SqsMock
