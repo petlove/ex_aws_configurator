@@ -49,11 +49,11 @@ defmodule ExAwsConfigurator do
       end)
 
     cond do
-      length(topics_not_created) > 0 ->
+      topics_not_created != [] ->
         Logger.error("Some topics was not created: #{inspect(topics_not_created)}")
         {:error, :topics}
 
-      length(queues_not_created) > 0 ->
+      queues_not_created != [] ->
         Logger.error("Some queues was not created: #{inspect(queues_not_created)}")
         {:error, :queues}
 
