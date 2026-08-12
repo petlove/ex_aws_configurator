@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [1.5.0](https://github.com/petlove/ex_aws_configurator/compare/v1.4.1...v1.5.0) (2026-08-12)
+
+### Features
+
+* add configurable separator to Topic and Queue ([#23](https://github.com/petlove/ex_aws_configurator/issues/23)) ([45fbc70](https://github.com/petlove/ex_aws_configurator/commit/45fbc70))
+
 ## [1.4.1](https://github.com/petlove/ex_aws_configurator/compare/v1.4.0...v1.4.1) (2024-09-18)
 
 ### Bug Fixes
