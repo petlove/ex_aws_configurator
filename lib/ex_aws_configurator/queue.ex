@@ -38,6 +38,7 @@ defmodule ExAwsConfigurator.Queue do
           region: binary(),
           environment: binary(),
           prefix: binary(),
+          separator: binary(),
           attributes: QueueAttributes,
           options: QueueOptions,
           topics: [Topic]
@@ -47,6 +48,7 @@ defmodule ExAwsConfigurator.Queue do
             environment: nil,
             region: nil,
             prefix: nil,
+            separator: "_",
             attributes: %QueueAttributes{},
             options: %QueueOptions{},
             topics: []
@@ -56,7 +58,7 @@ defmodule ExAwsConfigurator.Queue do
   def full_name(%__MODULE__{} = queue) do
     [queue.prefix, queue.environment, queue.name]
     |> Enum.filter(&(!is_nil(&1)))
-    |> Enum.join("_")
+    |> Enum.join(queue.separator)
   end
 
   @doc "get queue url"

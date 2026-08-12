@@ -27,6 +27,11 @@ defmodule ExAwsConfigurator.QueueTest do
     test "build full_name from queue", %{queue: queue} do
       assert "pref_env_topic" = Queue.full_name(queue)
     end
+
+    test "uses custom separator when configured", %{queue: queue} do
+      queue = %{queue | separator: "-"}
+      assert "pref-env-topic" = Queue.full_name(queue)
+    end
   end
 
   describe "url/1" do

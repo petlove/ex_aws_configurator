@@ -27,5 +27,10 @@ defmodule ExAwsConfigurator.TopicTest do
     test "build full_name from topic", %{topic: topic} do
       assert "pref_env_topic" = Topic.full_name(topic)
     end
+
+    test "uses custom separator when configured", %{topic: topic} do
+      topic = %{topic | separator: "-"}
+      assert "pref-env-topic" = Topic.full_name(topic)
+    end
   end
 end
