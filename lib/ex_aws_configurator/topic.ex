@@ -14,6 +14,7 @@ defmodule ExAwsConfigurator.Topic do
           region: binary(),
           environment: binary(),
           prefix: binary(),
+          separator: binary(),
           attributes: TopicAttributes
         }
 
@@ -21,6 +22,7 @@ defmodule ExAwsConfigurator.Topic do
             environment: nil,
             region: nil,
             prefix: nil,
+            separator: "_",
             attributes: %TopicAttributes{}
 
   @doc "get topic arn"
@@ -35,6 +37,6 @@ defmodule ExAwsConfigurator.Topic do
   def full_name(%__MODULE__{} = topic) do
     [topic.prefix, topic.environment, topic.name]
     |> Enum.filter(&(!is_nil(&1)))
-    |> Enum.join("_")
+    |> Enum.join(topic.separator)
   end
 end
