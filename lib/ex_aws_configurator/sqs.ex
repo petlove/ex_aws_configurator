@@ -1,8 +1,8 @@
 defmodule ExAwsConfigurator.SQS do
   require Logger
 
-  alias ExAwsConfigurator.{Queue, Topic}
   alias ExAws.{SNS, SQS}
+  alias ExAwsConfigurator.{Queue, Topic}
 
   @raw_message_delivery "raw_message_delivery"
   @fifo_suffix ".fifo"
@@ -66,33 +66,17 @@ defmodule ExAwsConfigurator.SQS do
     Logger.info(~s"""
     \n\n  Creating queue #{full_name} on #{queue.region}
         Attributes:
-          #{IO.ANSI.green()}>#{IO.ANSI.reset()} content_based_deduplication: #{
-      queue.attributes.content_based_deduplication
-    }
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} content_based_deduplication: #{queue.attributes.content_based_deduplication}
           #{IO.ANSI.green()}>#{IO.ANSI.reset()} delay_seconds: #{queue.attributes.delay_seconds}
           #{IO.ANSI.green()}>#{IO.ANSI.reset()} fifo_queue: #{queue.attributes.fifo_queue}
-          #{IO.ANSI.green()}>#{IO.ANSI.reset()} maximum_message_size: #{
-      queue.attributes.maximum_message_size
-    }
-          #{IO.ANSI.green()}>#{IO.ANSI.reset()} message_retention_period: #{
-      queue.attributes.message_retention_period
-    }
-          #{IO.ANSI.green()}>#{IO.ANSI.reset()} receive_message_wait_time_seconds: #{
-      queue.attributes.receive_message_wait_time_seconds
-    }
-          #{IO.ANSI.green()}>#{IO.ANSI.reset()} visibility_timeout: #{
-      queue.attributes.visibility_timeout
-    }
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} maximum_message_size: #{queue.attributes.maximum_message_size}
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} message_retention_period: #{queue.attributes.message_retention_period}
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} receive_message_wait_time_seconds: #{queue.attributes.receive_message_wait_time_seconds}
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} visibility_timeout: #{queue.attributes.visibility_timeout}
         Options:
-          #{IO.ANSI.green()}>#{IO.ANSI.reset()} dead_letter_queue: #{
-      queue.options.dead_letter_queue
-    }
-          #{IO.ANSI.green()}>#{IO.ANSI.reset()} dead_letter_queue_suffix: #{
-      queue.options.dead_letter_queue_suffix
-    }
-          #{IO.ANSI.green()}>#{IO.ANSI.reset()} max_receive_count: #{
-      queue.options.max_receive_count
-    }
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} dead_letter_queue: #{queue.options.dead_letter_queue}
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} dead_letter_queue_suffix: #{queue.options.dead_letter_queue_suffix}
+          #{IO.ANSI.green()}>#{IO.ANSI.reset()} max_receive_count: #{queue.options.max_receive_count}
     """)
 
     queue_creation_result = create_queue_on_sqs(full_name, queue, tags)
@@ -100,16 +84,12 @@ defmodule ExAwsConfigurator.SQS do
     case queue_creation_result do
       {:ok, _} ->
         Logger.info(~s"""
-        \n\n  #{IO.ANSI.green()}Queue #{full_name} created successfully on #{queue.region}#{
-          IO.ANSI.reset()
-        }
+        \n\n  #{IO.ANSI.green()}Queue #{full_name} created successfully on #{queue.region}#{IO.ANSI.reset()}
         """)
 
       {:error, term} ->
         Logger.error(~s"""
-        \n\n  #{IO.ANSI.red()}Error creating queue #{full_name} on #{queue.region}, reason: #{
-          inspect(term)
-        }#{IO.ANSI.reset()}
+        \n\n  #{IO.ANSI.red()}Error creating queue #{full_name} on #{queue.region}, reason: #{inspect(term)}#{IO.ANSI.reset()}
         """)
     end
 

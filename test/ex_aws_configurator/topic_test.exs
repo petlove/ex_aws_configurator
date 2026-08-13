@@ -1,7 +1,7 @@
 defmodule ExAwsConfigurator.TopicTest do
   use ExAwsConfigurator.Case
 
-  alias ExAwsConfigurator.Topic
+  alias ExAwsConfigurator.{Topic, TopicAttributes}
 
   doctest Topic
 
@@ -31,6 +31,15 @@ defmodule ExAwsConfigurator.TopicTest do
     test "uses custom separator when configured", %{topic: topic} do
       topic = %{topic | separator: "-"}
       assert "pref-env-topic" = Topic.full_name(topic)
+    end
+  end
+
+  describe "default attributes" do
+    test "TopicAttributes defaults" do
+      assert struct(TopicAttributes) == %TopicAttributes{
+               content_based_deduplication: nil,
+               fifo_topic: nil
+             }
     end
   end
 end

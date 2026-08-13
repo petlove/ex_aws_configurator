@@ -55,15 +55,15 @@ defmodule ExAwsConfigurator.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: :dev, runtime: false},
-      {:ex_aws, "~> 2.0"},
+      {:ex_aws, "~> 2.7"},
       {:ex_aws_sns, "~> 2.2"},
       {:ex_aws_sqs, "~> 3.2"},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:ex_machina, "~> 2.5.0", only: [:dev, :test]},
-      {:excoveralls, "~> 0.10", only: :test},
-      {:hackney, "~> 1.9"},
+      {:excoveralls, "~> 0.18", only: :test},
+      {:hackney, ">= 4.0.0"},
       {:jason, "~> 1.2"},
       {:sweet_xml, "~> 0.6"},
       {:vex, "~> 0.8.0"}

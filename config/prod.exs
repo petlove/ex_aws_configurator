@@ -1,4 +1,4 @@
-use Mix.Config
+import Config
 
 config :ex_aws_configurator,
   environment: Mix.env(),

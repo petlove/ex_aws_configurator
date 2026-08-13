@@ -1,40 +1,23 @@
 # BASE
-FROM elixir:1.10.1-alpine as base
-ENV MIX_ENV=prod PORT=80
+FROM hexpm/elixir:1.16.2-erlang-26.2.5.3-debian-bookworm-20260610-slim AS base
+ENV MIX_ENV=prod
 
-RUN apk add --update --no-cache \
-bash \
-git \
-build-base \
-tzdata
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY . /app
 
-RUN mix do local.hex --force, local.rebar --force, deps.get
+RUN mix do local.hex --force, local.rebar --force
+
+COPY mix.exs mix.lock ./
+RUN mix deps.get
+
+COPY . /app
 
 # DEV
 FROM base AS dev
 
 ENV EX_AWS_HOST="localstack"
-
-RUN apk add --update --no-cache curl
-
-# TEST
-FROM base as test
-ENV MIX_ENV=test
-
-RUN mix deps.compile
-
-RUN mix compile --warnings-as-errors
-
-CMD /app/ci/test.sh
-
-# BUILD
-FROM base as builder
-
-RUN mix deps.compile
-
-RUN apk add --update --no-cache npm
-
-RUN mix do compile --warnings-as-errors, phx.digest, release
