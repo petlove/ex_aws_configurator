@@ -19,4 +19,4 @@ COPY . .
 
 RUN mix compile --warnings-as-errors
 
-CMD ["mix", "do", "credo", "--strict", "+", "coveralls"]
+CMD ["mix", "do", "credo", "--strict,", "coveralls"]
