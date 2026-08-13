@@ -20,16 +20,6 @@ ENV EX_AWS_HOST="localstack"
 
 RUN apk add --update --no-cache curl
 
-# TEST
-FROM base as test
-ENV MIX_ENV=test
-
-RUN mix deps.compile
-
-RUN mix compile --warnings-as-errors
-
-CMD /app/ci/test.sh
-
 # BUILD
 FROM base as builder
 

@@ -1,0 +1,74 @@
+steps:
+  - id: localstack
+    name: 'docker/compose:1.24.1'
+    args:
+      - '-f'
+      - cloudbuild/docker-compose.yml
+      - up
+      - '-d'
+    waitFor: ['-']
+
+  - id: Deps
+    name: hexpm/elixir:1.16.2-erlang-26.2.5.3-debian-bookworm-20260610-slim
+    env:
+      - 'MIX_ENV=test'
+      - 'HOME=/root'
+    entrypoint: sh
+    args:
+      - '-c'
+      - |
+        set -e
+        mix local.hex --force && mix local.rebar --force
+        mix deps.get
+        mix deps.compile
+    waitFor: ['-']
+
+  - id: Compile
+    name: hexpm/elixir:1.16.2-erlang-26.2.5.3-debian-bookworm-20260610-slim
+    env:
+      - 'MIX_ENV=test'
+      - 'HOME=/root'
+    entrypoint: sh
+    args:
+      - '-c'
+      - mix local.hex --force && mix local.rebar --force && mix compile --warnings-as-errors --force
+    waitFor: ['Deps']
+
+  - id: Check format
+    name: hexpm/elixir:1.16.2-erlang-26.2.5.3-debian-bookworm-20260610-slim
+    env:
+      - 'MIX_ENV=test'
+      - 'HOME=/root'
+    entrypoint: sh
+    args:
+      - '-c'
+      - mix local.hex --force && mix local.rebar --force && mix format --check-formatted
+    waitFor: ['Deps']
+
+  - id: Credo
+    name: hexpm/elixir:1.16.2-erlang-26.2.5.3-debian-bookworm-20260610-slim
+    env:
+      - 'MIX_ENV=test'
+      - 'HOME=/root'
+    entrypoint: sh
+    args:
+      - '-c'
+      - mix local.hex --force && mix local.rebar --force && mix credo
+    waitFor: ['Deps']
+
+  - id: Test
+    name: hexpm/elixir:1.16.2-erlang-26.2.5.3-debian-bookworm-20260610-slim
+    env:
+      - 'MIX_ENV=test'
+      - 'HOME=/root'
+      - 'EX_AWS_HOST=localstack'
+    entrypoint: sh
+    args:
+      - '-c'
+      - mix local.hex --force && mix local.rebar --force && mix test
+    waitFor: ['Deps', 'localstack']
+
+timeout: 1200s
+options:
+  pool:
+    name: 'projects/$PROJECT_ID/locations/us-east1/workerPools/private-worker-pool'
