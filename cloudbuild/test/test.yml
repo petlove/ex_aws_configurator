@@ -65,7 +65,7 @@ steps:
     entrypoint: sh
     args:
       - '-c'
-      - mix local.hex --force && mix local.rebar --force && mix test
+      - mix local.hex --force && mix local.rebar --force && mix coveralls
     waitFor: ['Deps', 'localstack']
 
 timeout: 1200s
