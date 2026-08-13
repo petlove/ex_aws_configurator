@@ -62,7 +62,7 @@ defmodule ExAwsConfigurator.MixProject do
       {:ex_aws_sqs, "~> 3.2"},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:ex_machina, "~> 2.5.0", only: [:dev, :test]},
-      {:excoveralls, "~> 0.10", only: :test},
+      {:excoveralls, "~> 0.18", only: :test},
       {:hackney, "~> 1.9"},
       {:jason, "~> 1.2"},
       {:sweet_xml, "~> 0.6"},
