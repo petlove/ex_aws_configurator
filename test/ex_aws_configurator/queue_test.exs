@@ -1,7 +1,7 @@
 defmodule ExAwsConfigurator.QueueTest do
   use ExAwsConfigurator.Case
 
-  alias ExAwsConfigurator.Queue
+  alias ExAwsConfigurator.{Queue, QueueAttributes, QueueOptions}
 
   doctest Queue
 
@@ -37,6 +37,31 @@ defmodule ExAwsConfigurator.QueueTest do
   describe "url/1" do
     test "build url from queue", %{queue: queue} do
       assert Queue.url(queue) =~ "000000000000/pref_env_topic"
+    end
+  end
+
+  describe "default attributes and options" do
+    test "QueueAttributes defaults" do
+      assert struct(QueueAttributes) == %QueueAttributes{
+               content_based_deduplication: nil,
+               delay_seconds: 0,
+               fifo_queue: nil,
+               maximum_message_size: 262_144,
+               message_retention_period: 1_209_600,
+               receive_message_wait_time_seconds: 0,
+               policy: nil,
+               redrive_policy: nil,
+               visibility_timeout: 60
+             }
+    end
+
+    test "QueueOptions defaults" do
+      assert struct(QueueOptions) == %QueueOptions{
+               max_receive_count: 7,
+               dead_letter_queue: true,
+               dead_letter_queue_suffix: "_failures",
+               raw_message_delivery: false
+             }
     end
   end
 end

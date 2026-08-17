@@ -1,0 +1,22 @@
+FROM hexpm/elixir:1.16.2-erlang-26.2.5.3-debian-bookworm-20260610-slim
+
+ENV MIX_ENV=test \
+    HOME=/root
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+RUN mix local.hex --force && mix local.rebar --force
+
+COPY mix.exs mix.lock ./
+RUN mix deps.get && mix deps.compile
+
+COPY . .
+
+RUN mix compile --warnings-as-errors
+
+CMD ["mix", "do", "credo", "--strict,", "coveralls"]
