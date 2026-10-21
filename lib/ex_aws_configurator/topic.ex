@@ -7,7 +7,7 @@ end
 defmodule ExAwsConfigurator.Topic do
   require Logger
 
-  alias ExAwsConfigurator.TopicAttributes
+  alias ExAwsConfigurator.{Account, TopicAttributes}
 
   @type t :: %__MODULE__{
           name: binary(),
@@ -15,7 +15,11 @@ defmodule ExAwsConfigurator.Topic do
           environment: binary(),
           prefix: binary(),
           separator: binary(),
-          attributes: TopicAttributes
+          attributes: TopicAttributes,
+          account: Account.t(),
+          arn: binary() | nil,
+          external: boolean(),
+          on_unauthorized: :error | :warn
         }
 
   defstruct name: nil,
@@ -23,12 +27,23 @@ defmodule ExAwsConfigurator.Topic do
             region: nil,
             prefix: nil,
             separator: "_",
-            attributes: %TopicAttributes{}
+            attributes: %TopicAttributes{},
+            account: %Account{},
+            arn: nil,
+            external: false,
+            on_unauthorized: :error
 
-  @doc "get topic arn"
+  @doc """
+  get topic arn
+
+  When the topic was configured with a raw `arn`, it is returned as is. Otherwise the
+  arn is composed from the topic region, the id of the topic account and `full_name/1`.
+  """
   @spec arn(t()) :: String.t()
+  def arn(%__MODULE__{arn: arn}) when is_binary(arn), do: arn
+
   def arn(%__MODULE__{} = topic) do
-    ["arn:aws:sns", topic.region, ExAwsConfigurator.get_env(:account_id), full_name(topic)]
+    ["arn:aws:sns", topic.region, account_id(topic), full_name(topic)]
     |> Enum.join(":")
   end
 
@@ -39,4 +54,9 @@ defmodule ExAwsConfigurator.Topic do
     |> Enum.filter(&(!is_nil(&1)))
     |> Enum.join(topic.separator)
   end
+
+  @doc false
+  @spec account_id(t()) :: String.t() | nil
+  def account_id(%__MODULE__{account: %Account{id: id}}) when is_binary(id), do: id
+  def account_id(%__MODULE__{}), do: ExAwsConfigurator.get_env(:account_id)
 end

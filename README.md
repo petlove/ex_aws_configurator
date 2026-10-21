@@ -17,7 +17,7 @@ The package can be installed by adding jason to your list of dependencies in mix
 ```elixir
 def deps do
   [
-    {:ex_aws_configurator, "~> 1.4"}
+    {:ex_aws_configurator, "~> 2.0"}
   ]
 end
 ```
@@ -75,6 +75,58 @@ queue and topic name composition is: `prefix + environment + key` joined by `_`.
 | `prefix` | `nil` | no | Used to compose topic/queue name. |
 | `region` | `System.get_env("AWS_REGION")` | no | use to specify aws region or to override ex_aws default region |
 | `topics` | `[]` | no | list of topics that the queue will subscribe to, must be an atom and the topic must be specified on topics list |
+
+`ExAwsConfigurator.setup()` is idempotent: topics and queues that already exist have their mutable attributes (policy, redrive policy, timeouts...) updated to match the configuration, so it is safe to run it on every deploy. It never deletes anything.
+
+#### External accounts (topics owned by other AWS accounts)
+
+To subscribe a queue to a topic that belongs to another AWS account (another business unit, for example), declare the account under `accounts` and reference it from the topic:
+
+```elixir
+config :ex_aws_configurator,
+  account_id: System.get_env("AWS_ACCOUNT_ID"),   # the default account
+  region: "sa-east-1",
+  accounts: %{
+    health: %{id: System.get_env("AWS_HEALTH_ACCOUNT_ID"), region: "sa-east-1"}
+  },
+  topics: %{
+    subscription_activated: %{prefix: "health_api", account: :health},
+    pet_plan_canceled: %{prefix: "health_backoffice", account: :health, on_unauthorized: :warn},
+    legacy_topic: %{arn: "arn:aws:sns:sa-east-1:111111111111:some-name-outside-our-convention"}
+  },
+  queues: %{
+    traits_health_plan: %{prefix: "my_app", topics: [:subscription_activated, :pet_plan_canceled]}
+  }
+```
+
+- a topic whose account differs from the default one is **external**: its ARN is composed as usual (`prefix + environment + key` on the account region), the queue policy allows it as a source, but `setup/0` never tries to create it, since it is managed by its owner;
+- `arn` declares a topic by its raw ARN, skipping name composition; the account and region come from the ARN;
+- `setup/0` subscribes the queue to the external topic, which only works when the topic owner allows `sns:Subscribe` from your account. If it is denied the setup fails (`{:error, :subscriptions}`). Set `on_unauthorized: :warn` on the topic (or globally with `config :ex_aws_configurator, on_unauthorized: :warn`) to only log a warning instead; the warning contains the policy statement the owner must add.
+
+Account options:
+
+| Name | Default | Required | Description |
+|------|---------|----------|-------------|
+| `id` | `nil` | true | the AWS account id; accepts `{:system, "ENV_VAR"}` |
+| `region` | global `region` | no | region where the account resources live |
+
+Besides `account_id`, `region`, `environment`, `prefix`, `separator` and `attributes`, topics accept:
+
+| Name | Default | Required | Description |
+|------|---------|----------|-------------|
+| `account` | `:default` | no | name of the account (declared in `accounts`) that owns the topic |
+| `arn` | `nil` | no | raw topic ARN; replaces name composition, `account` and `region` |
+| `on_unauthorized` | global `on_unauthorized` (`:error`) | no | `:error` or `:warn`, what to do when the owner of an external topic refuses the subscription |
+
+`ExAwsConfigurator.setup/0` needs, besides the create permissions, `sqs:GetQueueUrl`, `sqs:SetQueueAttributes`, `sqs:TagQueue`, `sns:GetTopicAttributes` and `sns:SetTopicAttributes` on your own account.
+
+#### Upgrading from 1.x
+
+- `setup/0` updates existing topics and queues instead of failing when their attributes changed. **Attributes edited by hand on AWS (a queue policy, for example) are overwritten by what the configuration declares**: move any manual adjustment into the configuration (such as an external account) before upgrading;
+- `setup/0` now fails with `{:error, :subscriptions}` when a subscription cannot be created (before, subscription errors were ignored);
+- `setup/0` needs new IAM permissions: `sqs:GetQueueUrl`, `sqs:SetQueueAttributes`, `sqs:TagQueue`, `sns:GetTopicAttributes` and `sns:SetTopicAttributes`;
+- `ExAwsConfigurator.SNS.publish/3` accepts `opts` forwarded to `ExAws.SNS.publish/2` (for example `message_attributes`). Binaries are published as they are instead of being JSON encoded; maps and lists are still JSON encoded;
+- the raw message delivery attribute of a subscription is now set on the topic region.
 
 if you prefer more control on **topics** and **queues** criation you can use create/subscribe methods separately
 

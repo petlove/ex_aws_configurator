@@ -39,6 +39,8 @@ defmodule ExAwsConfigurator.MixProject do
       extra_applications: [:logger],
       env: [
         account_id: {:system, "AWS_ACCOUNT_ID"},
+        accounts: %{},
+        on_unauthorized: :error,
         queues: %{},
         topics: %{}
       ]

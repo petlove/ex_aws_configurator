@@ -3,12 +3,11 @@ version: '3.7'
 services:
   localstack:
     container_name: ex_aws_configurator_localstack
-    image: localstack/localstack
+    image: floci/floci:2.0.1-compat
     ports:
       - "4566:4566"
-      - "4571:4571"
     environment:
-      - SERVICES=sns,sqs
+      - FLOCI_BASE_URL=http://localstack:4566
 
   lib:
     container_name: ex_aws_configurator_lib

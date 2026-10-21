@@ -23,4 +23,18 @@ defmodule ExAwsConfigurator.Case do
 
     Application.put_env(:ex_aws_configurator, :topics, Map.merge(topics, topic_config))
   end
+
+  @doc "Declare the `:external` account (owned by `ExAwsConfigurator.HttpStub.external_account_id/0`)."
+  def add_external_account_to_config do
+    accounts = Application.get_env(:ex_aws_configurator, :accounts, %{})
+
+    Application.put_env(
+      :ex_aws_configurator,
+      :accounts,
+      Map.put(accounts, :external, %{
+        id: ExAwsConfigurator.HttpStub.external_account_id(),
+        region: "sa-east-1"
+      })
+    )
+  end
 end

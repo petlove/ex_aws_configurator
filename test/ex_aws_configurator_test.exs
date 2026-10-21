@@ -129,6 +129,63 @@ defmodule ExAwsConfiguratorTest do
     end
   end
 
+  describe "setup/0 with external topics" do
+    setup do
+      config = [
+        {
+          :ex_aws_configurator,
+          [
+            environment: :test,
+            account_id: "000000000000",
+            region: "us-east-1",
+            accounts: %{
+              external: %{
+                id: ExAwsConfigurator.HttpStub.external_account_id(),
+                region: "sa-east-1"
+              }
+            },
+            queues: %{
+              an_queue: %{
+                environment: "test",
+                prefix: "prefix",
+                region: "us-east-1",
+                topics: [:an_topic, :their_topic]
+              }
+            },
+            topics: %{
+              an_topic: %{environment: "test", prefix: "prefix", region: "us-east-1"},
+              their_topic: %{environment: "test", prefix: "theirs", account: :external}
+            }
+          ]
+        }
+      ]
+
+      Application.put_all_env(config)
+      :ok
+    end
+
+    test "fails on subscriptions when the external topic owner did not allow it" do
+      assert {:error, :subscriptions} = ExAwsConfigurator.setup()
+
+      assert_raise ExAwsConfigurator.SetupError,
+                   ~r/subscribing the queues to the topics/,
+                   fn -> ExAwsConfigurator.setup!() end
+    end
+
+    test "succeeds when the external topic is configured with on_unauthorized: :warn" do
+      add_topic_to_config(%{
+        their_topic: %{
+          environment: "test",
+          prefix: "theirs",
+          account: :external,
+          on_unauthorized: :warn
+        }
+      })
+
+      assert :ok = ExAwsConfigurator.setup()
+    end
+  end
+
   describe "get_env/1" do
     test "get application env value when system env is nil" do
       Application.put_all_env([{:ex_aws_configurator, [account_id: "000000000000"]}])
