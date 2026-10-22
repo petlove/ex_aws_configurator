@@ -39,19 +39,19 @@ defmodule ExAwsConfigurator.SQSTest do
     test "create queue when receive a atom with correct configuration" do
       assert capture_log(fn ->
                assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_name)
-             end) =~ "created successfully"
+             end) =~ ~r/(created|updated) successfully/
     end
 
     test "create queue without dead letter queue" do
       assert capture_log(fn ->
                assert {:ok, %{status_code: 200}} = SQS.create_queue(:without_failures_queue)
-             end) =~ "created successfully"
+             end) =~ ~r/(created|updated) successfully/
     end
 
     test "create queue with min attributes" do
       assert capture_log(fn ->
                assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_min_config)
-             end) =~ "created successfully"
+             end) =~ ~r/(created|updated) successfully/
     end
 
     test "create a fifo queue" do
@@ -64,7 +64,17 @@ defmodule ExAwsConfigurator.SQSTest do
                         queue
 
                assert Queue.full_name(queue) == "prefix_test_queue.fifo"
-             end) =~ "created successfully"
+             end) =~ ~r/(created|updated) successfully/
+    end
+
+    test "updates the queue when it already exists" do
+      add_queue_to_config(build(:queue_config, name: :idempotent_queue))
+
+      assert {:ok, %{status_code: 200}} = SQS.create_queue(:idempotent_queue)
+
+      assert capture_log(fn ->
+               assert {:ok, %{status_code: 200}} = SQS.create_queue(:idempotent_queue)
+             end) =~ "Queue prefix_test_idempotent_queue updated successfully"
     end
 
     test "do not create an invalid queue" do
@@ -87,6 +97,34 @@ defmodule ExAwsConfigurator.SQSTest do
 
     test "subscribe queue to an topic when raw_message_delivery is true" do
       assert {:ok, %{status_code: 200}} = SQS.subscribe(:raw_queue, :topic_name)
+    end
+
+    test "returns the AuthorizationError when the external topic owner did not allow it" do
+      add_external_account_to_config()
+      add_topic_to_config(%{their_topic: %{prefix: "theirs", account: :external}})
+
+      assert capture_log(fn ->
+               assert {:error, {:http_error, 403, %{code: "AuthorizationError"}}} =
+                        SQS.subscribe(:queue_name, :their_topic)
+             end) =~ "Not authorized to subscribe queue prefix_test_queue_name"
+    end
+
+    test "only warns when the external topic is configured with on_unauthorized: :warn" do
+      add_external_account_to_config()
+
+      add_topic_to_config(%{
+        their_topic: %{prefix: "theirs", account: :external, on_unauthorized: :warn}
+      })
+
+      log =
+        capture_log(fn ->
+          assert {:ok, :unauthorized} = SQS.subscribe(:queue_name, :their_topic)
+        end)
+
+      assert log =~ "[warning]"
+      assert log =~ "Ask the topic owner (account 829683656197)"
+      assert log =~ ~s("Action": [\n    "sns:Subscribe")
+      assert log =~ ~s("AWS": "arn:aws:iam::000000000000:root")
     end
 
     test "raise when tries to subscribe a queue without queue configuration" do

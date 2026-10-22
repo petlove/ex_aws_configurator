@@ -24,13 +24,32 @@ defmodule ExAwsConfigurator.SNSTest do
     test "create topic when receive a atom with correct configuration" do
       assert capture_log(fn ->
                assert {:ok, %{status_code: 200}} = SNS.create_topic(:topic_name)
-             end) =~ "created successfully"
+             end) =~ ~r/(created|updated) successfully/
     end
 
     test "create topic with min attributes" do
       assert capture_log(fn ->
                assert {:ok, %{status_code: 200}} = SNS.create_topic(:topic_min_config)
-             end) =~ "created successfully"
+             end) =~ ~r/(created|updated) successfully/
+    end
+
+    test "updates the topic when it already exists" do
+      add_topic_to_config(build(:topic_config, name: :idempotent_topic))
+
+      assert {:ok, %{status_code: 200}} = SNS.create_topic(:idempotent_topic)
+
+      assert capture_log(fn ->
+               assert {:ok, %{status_code: 200}} = SNS.create_topic(:idempotent_topic)
+             end) =~ "already exists on us-east-1, updating attributes"
+    end
+
+    test "does not create an external topic" do
+      add_external_account_to_config()
+      add_topic_to_config(%{their_topic: %{prefix: "theirs", account: :external}})
+
+      assert capture_log(fn ->
+               assert {:ok, :external} = SNS.create_topic(:their_topic)
+             end) =~ "Skipping topic arn:aws:sns:sa-east-1:"
     end
 
     test "do not create an invalid topic" do
@@ -51,6 +70,15 @@ defmodule ExAwsConfigurator.SNSTest do
       SNS.create_topic(:topic_name)
 
       assert {:ok, %{status_code: 200}} = SNS.publish(:topic_name, "message")
+    end
+
+    test "encodes maps as json and forwards opts to ExAws" do
+      SNS.create_topic(:topic_name)
+
+      attributes = [%{name: "traceparent", data_type: :string, value: {:string, "00-abc-def-01"}}]
+
+      assert {:ok, %{status_code: 200}} =
+               SNS.publish(:topic_name, %{event: "created"}, message_attributes: attributes)
     end
 
     test "public an message to an non existent topic" do

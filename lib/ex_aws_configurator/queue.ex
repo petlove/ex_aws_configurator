@@ -28,6 +28,7 @@ end
 
 defmodule ExAwsConfigurator.Queue do
   alias ExAwsConfigurator.{
+    Account,
     QueueAttributes,
     QueueOptions,
     Topic
@@ -41,7 +42,8 @@ defmodule ExAwsConfigurator.Queue do
           separator: binary(),
           attributes: QueueAttributes,
           options: QueueOptions,
-          topics: [Topic]
+          topics: [Topic],
+          account: Account.t()
         }
 
   defstruct name: nil,
@@ -51,7 +53,8 @@ defmodule ExAwsConfigurator.Queue do
             separator: "_",
             attributes: %QueueAttributes{},
             options: %QueueOptions{},
-            topics: []
+            topics: [],
+            account: %Account{}
 
   @doc "get queue full name, its a composition of `prefix + environment + queue.name`"
   @spec full_name(t()) :: String.t()
@@ -66,18 +69,21 @@ defmodule ExAwsConfigurator.Queue do
   def url(%__MODULE__{} = queue) do
     %{scheme: scheme, host: host} = ExAws.Config.new(:sqs)
 
-    ["#{scheme}#{host}", ExAwsConfigurator.get_env(:account_id), full_name(queue)]
+    ["#{scheme}#{host}", account_id(queue), full_name(queue)]
     |> Enum.join("/")
   end
 
   @doc "get queue arn"
   @spec arn(t()) :: String.t()
   def arn(%__MODULE__{} = queue) do
-    ["arn:aws:sqs", queue.region, ExAwsConfigurator.get_env(:account_id), full_name(queue)]
+    ["arn:aws:sqs", queue.region, account_id(queue), full_name(queue)]
     |> Enum.join(":")
   end
 
-  @doc false
+  @doc """
+  The access policy applied to the queue: allows every topic the queue subscribes to
+  (including topics owned by external accounts) to deliver messages into it.
+  """
   @spec policy(t()) :: String.t()
   def policy(%__MODULE__{} = queue) do
     queue_arn = arn(queue)
@@ -100,4 +106,9 @@ defmodule ExAwsConfigurator.Queue do
     }
     |> Jason.encode!()
   end
+
+  @doc false
+  @spec account_id(t()) :: String.t() | nil
+  def account_id(%__MODULE__{account: %Account{id: id}}) when is_binary(id), do: id
+  def account_id(%__MODULE__{}), do: ExAwsConfigurator.get_env(:account_id)
 end

@@ -20,4 +20,8 @@ defmodule ExAwsConfigurator.SetupError do
   def message(%{type: :queues}),
     do:
       "something went wrong when creating the queues, ensure that the credentials have the necessary permissions to perform this operation in addition to being able to subscribe to topics"
+
+  def message(%{type: :subscriptions}),
+    do:
+      "something went wrong when subscribing the queues to the topics, ensure that the credentials have the necessary permissions and, for external topics, that the topic owner allows sns:Subscribe from this account (or set `on_unauthorized: :warn` on the topic)"
 end

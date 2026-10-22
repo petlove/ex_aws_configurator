@@ -15,17 +15,11 @@ jobs:
 
     services:
       localstack:
-        image: localstack/localstack:latest
+        image: floci/floci:2.0.1-compat
         ports:
           - 4566:4566
         env:
-          SERVICES: sns,sqs
-          DEBUG: ""
-          DATA_DIR: ""
-          LAMBDA_EXECUTOR: ""
-          KINESIS_ERROR_PROBABILITY: ""
-          DOCKER_HOST: unix:///var/run/docker.sock
-          HOST_TMP_FOLDER: "/tmp"
+          FLOCI_BASE_URL: http://localhost:4566
 
     steps:
     - uses: actions/checkout@v2
