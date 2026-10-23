@@ -5,7 +5,7 @@ defmodule ExAwsConfigurator do
 
   require Logger
 
-  alias ExAwsConfigurator.{Account, Config, Queue, SNS, SQS, Topic}
+  alias ExAwsConfigurator.{Account, Config, Queue, SNS, SQS, Telemetry, Topic}
 
   @doc """
   Ensure every topic, queue and subscription present in the configuration exists on AWS.
@@ -23,11 +23,16 @@ defmodule ExAwsConfigurator do
 
   It is safe to run on every deploy. Returns `{:error, :topics | :queues | :subscriptions}`
   naming the first phase that failed.
+
+  Emits the `[:ex_aws_configurator, :setup]` span, and every resource emits its own
+  (see `ExAwsConfigurator.Telemetry`).
   """
   @spec setup() :: :ok | {:error, :topics | :queues | :subscriptions}
   def setup do
-    %Config{topics: topics, queues: queues} = Config.load()
+    Telemetry.span(:setup, %{}, fn -> Config.load() |> run_setup() end)
+  end
 
+  defp run_setup(%Config{topics: topics, queues: queues}) do
     topics_not_created =
       for {name, topic} <- topics, match?({:error, _}, SNS.create_topic(topic)), do: name
 

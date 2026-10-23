@@ -12,7 +12,7 @@ defmodule ExAwsConfigurator.SQS do
   require Logger
 
   alias ExAws.{SNS, SQS}
-  alias ExAwsConfigurator.{Queue, Topic}
+  alias ExAwsConfigurator.{Propagator, Queue, Telemetry, Topic}
 
   @raw_message_delivery "raw_message_delivery"
   @fifo_attributes [:content_based_deduplication, :fifo_queue]
@@ -29,6 +29,9 @@ defmodule ExAwsConfigurator.SQS do
   queue (`ExAwsConfigurator.Queue.dead_letter_queue/1`) is ensured first; if that fails
   the error is returned and the queue itself is not touched, so a queue never points its
   redrive policy to a dead letter queue that does not exist.
+
+  Emits one `[:ex_aws_configurator, :create_queue]` span for the queue and one for its
+  dead letter queue (see `ExAwsConfigurator.Telemetry`).
 
   raises `ExAwsConfigurator.NoResultsError` if the atom form is used and no
   configuration was found.
@@ -71,16 +74,25 @@ defmodule ExAwsConfigurator.SQS do
   @spec create_queue(Queue.t() | atom, map) :: {:ok, term} | {:error, term}
   def create_queue(queue, tags \\ %{})
 
-  def create_queue(%Queue{options: %{dead_letter_queue: true}} = queue, tags) do
+  def create_queue(%Queue{} = queue, tags) do
+    Telemetry.span(:create_queue, Telemetry.metadata(queue), fn ->
+      ensure_dead_letter_queue_and_queue(queue, tags)
+    end)
+  end
+
+  def create_queue(queue_name, tags) when is_atom(queue_name),
+    do: queue_name |> ExAwsConfigurator.get_queue() |> create_queue(tags)
+
+  defp ensure_dead_letter_queue_and_queue(
+         %Queue{options: %{dead_letter_queue: true}} = queue,
+         tags
+       ) do
     with {:ok, _} <- queue |> Queue.dead_letter_queue() |> create_queue(tags) do
       ensure_queue(queue, tags)
     end
   end
 
-  def create_queue(%Queue{} = queue, tags), do: ensure_queue(queue, tags)
-
-  def create_queue(queue_name, tags) when is_atom(queue_name),
-    do: queue_name |> ExAwsConfigurator.get_queue() |> create_queue(tags)
+  defp ensure_dead_letter_queue_and_queue(queue, tags), do: ensure_queue(queue, tags)
 
   defp ensure_queue(queue, tags) do
     full_name = Queue.full_name(queue)
@@ -113,9 +125,19 @@ defmodule ExAwsConfigurator.SQS do
     * with `on_unauthorized: :error` (default) the `{:error, term}` is returned as is;
     * with `on_unauthorized: :warn` a warning with the policy statement the owner must
       add is logged and `{:ok, :unauthorized}` is returned.
+
+  Emits the `[:ex_aws_configurator, :subscribe]` span (see `ExAwsConfigurator.Telemetry`).
   """
   @spec subscribe(Queue.t() | atom, Topic.t() | atom) :: {:ok, term} | {:error, term}
   def subscribe(%Queue{} = queue, %Topic{} = topic) do
+    Telemetry.span(:subscribe, Telemetry.metadata(queue, topic), fn ->
+      subscribe_on_sns(queue, topic)
+    end)
+  end
+
+  def subscribe(queue, topic), do: subscribe(fetch_queue(queue), fetch_topic(topic))
+
+  defp subscribe_on_sns(queue, topic) do
     Logger.info("Subscribe queue #{Queue.full_name(queue)} to topic #{Topic.full_name(topic)}")
 
     result =
@@ -138,10 +160,12 @@ defmodule ExAwsConfigurator.SQS do
     end
   end
 
-  def subscribe(queue, topic), do: subscribe(fetch_queue(queue), fetch_topic(topic))
-
   @doc """
   Send message to a queue build the correct queue name based on queue configuration
+
+  When a `propagator` is configured (see `ExAwsConfigurator.Propagator`) the trace
+  context is added to the `message_attributes`. Emits the
+  `[:ex_aws_configurator, :send_message]` span (see `ExAwsConfigurator.Telemetry`).
 
   raises `ExAwsConfigurator.NoResultsError` if the atom form is used and no
   configuration was found.
@@ -185,10 +209,14 @@ defmodule ExAwsConfigurator.SQS do
   def send_message(%Queue{} = queue, message, opts) do
     Logger.info("Sending message to #{Queue.full_name(queue)}")
 
-    queue
-    |> Queue.url()
-    |> SQS.send_message(message, opts)
-    |> ExAws.request(region: queue.region)
+    opts = Propagator.inject_message_attributes(opts, :sqs)
+
+    Telemetry.span(:send_message, Telemetry.metadata(queue), fn ->
+      queue
+      |> Queue.url()
+      |> SQS.send_message(message, opts)
+      |> ExAws.request(region: queue.region)
+    end)
   end
 
   def send_message(queue_name, message, opts) when is_atom(queue_name),

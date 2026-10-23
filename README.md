@@ -120,6 +120,68 @@ Besides `account_id`, `region`, `environment`, `prefix`, `separator` and `attrib
 
 `ExAwsConfigurator.setup/0` needs, besides the create permissions, `sqs:GetQueueUrl`, `sqs:SetQueueAttributes`, `sqs:TagQueue`, `sns:GetTopicAttributes` and `sns:SetTopicAttributes` on your own account.
 
+#### Telemetry
+
+Every call that touches AWS (`SNS.publish/3`, `SQS.send_message/3`, `setup/0` and each
+resource it ensures) is a [`:telemetry`](https://hex.pm/packages/telemetry) span:
+`[:ex_aws_configurator, :publish | :send_message | :create_topic | :create_queue | :subscribe | :setup]`
+with `:start`, `:stop` and `:exception` events. The metadata names the resource
+(`topic`/`queue` atom, ARN, region, account) and the `:stop` event carries `result`
+(`:ok`/`:error`) and the `error`. See `ExAwsConfigurator.Telemetry` for the full list.
+
+To get them as metrics, add [`telemetry_metrics`](https://hex.pm/packages/telemetry_metrics)
+to your deps and append the ready-made definitions to the reporter your app already runs:
+
+```elixir
+# lib/my_app_web/telemetry.ex
+def metrics do
+  [
+    counter("my_app.api.request.count"),
+    # ...
+  ] ++ ExAwsConfigurator.Telemetry.metrics("my_app")
+end
+```
+
+That gives `my_app.sns.publish.count`/`.duration`/`.exception.count` (tagged by `topic` and
+`result`), the same for `my_app.sqs.send_message` (tagged by `queue`) and
+`my_app.setup.count`/`.duration`.
+
+#### Trace propagation
+
+To link the consumer trace to the publisher one, configure a propagator: its headers are
+added as string `message_attributes` to every message published or sent. With
+[`opentelemetry_api`](https://hex.pm/packages/opentelemetry_api) in your deps:
+
+```elixir
+config :ex_aws_configurator,
+  propagator: ExAwsConfigurator.Propagator.OpenTelemetry
+```
+
+Any other tracer works through a module implementing `ExAwsConfigurator.Propagator` or a
+`{module, function, args}` returning `{name, value}` pairs.
+
+On the consumer side (Broadway SQS), ask the producer for the attributes and continue the
+trace before processing the message:
+
+```elixir
+alias ExAwsConfigurator.Propagator.OpenTelemetry, as: Propagation
+
+# producer options
+message_attribute_names: Propagation.header_names()
+
+def handle_message(_processor, message, _context) do
+  token = Propagation.extract(message.metadata.message_attributes)
+
+  try do
+    OpenTelemetry.Tracer.with_span "orders.process", %{kind: :consumer} do
+      process(message)
+    end
+  after
+    OpenTelemetry.Ctx.detach(token)
+  end
+end
+```
+
 #### Upgrading from 1.x
 
 - `setup/0` updates existing topics and queues instead of failing when their attributes changed. **Attributes edited by hand on AWS (a queue policy, for example) are overwritten by what the configuration declares**: move any manual adjustment into the configuration (such as an external account) before upgrading;

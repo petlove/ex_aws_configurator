@@ -21,11 +21,13 @@
   "mime": {:hex, :mime, "2.0.2", "0b9e1a4c840eafb68d820b0e2158ef5c49385d17fb36855ac6e7e087d4b1dcc5", [:mix], [], "hexpm", "e6a3f76b4c277739e36c2e21a2c640778ba4c3846189d5ab19f97f126df5f9b7"},
   "mimerl": {:hex, :mimerl, "1.5.0", "f35aca6f23242339b3666e0ac0702379e362b469d0aea167f6cc713547e777ed", [:rebar3], [], "hexpm", "db648ce065bae14ea84ca8b5dd123f42f49417cef693541110bf6f9e9be9ecc4"},
   "nimble_parsec": {:hex, :nimble_parsec, "1.1.0", "3a6fca1550363552e54c216debb6a9e95bd8d32348938e13de5eda962c0d7f89", [:mix], [], "hexpm", "08eb32d66b706e913ff748f11694b17981c0b04a33ef470e33e11b3d3ac8f54b"},
+  "opentelemetry_api": {:hex, :opentelemetry_api, "1.5.0", "1a676f3e3340cab81c763e939a42e11a70c22863f645aa06aafefc689b5550cf", [:mix, :rebar3], [], "hexpm", "f53ec8a1337ae4a487d43ac89da4bd3a3c99ddf576655d071deed8b56a2d5dda"},
   "parse_trans": {:hex, :parse_trans, "3.4.1", "6e6aa8167cb44cc8f39441d05193be6e6f4e7c2946cb2759f015f8c56b76e5ff", [:rebar3], [], "hexpm", "620a406ce75dada827b82e453c19cf06776be266f5a67cff34e1ef2cbb60e49a"},
   "saxy": {:hex, :saxy, "1.3.0", "61b52697a3235be68ce6f8ecc2c7032f3c01184b14d142a7d09270019e32fbf9", [:mix], [], "hexpm", "c9770a08c168be95c8d8249a9051dd5522641941ec1d9cb843e7d12dc101b6d2"},
   "ssl_verify_fun": {:hex, :ssl_verify_fun, "1.1.7", "354c321cf377240c7b8716899e182ce4890c5938111a1296add3ec74cf1715df", [:make, :mix, :rebar3], [], "hexpm", "fe4c190e8f37401d30167c8c405eda19469f34577987c76dde613e838bbc67f8"},
   "sweet_xml": {:hex, :sweet_xml, "0.7.2", "4729f997286811fabdd8288f8474e0840a76573051062f066c4b597e76f14f9f", [:mix], [], "hexpm", "6894e68a120f454534d99045ea3325f7740ea71260bc315f82e29731d570a6e8"},
   "telemetry": {:hex, :telemetry, "1.0.0", "0f453a102cdf13d506b7c0ab158324c337c41f1cc7548f0bc0e130bbf0ae9452", [:rebar3], [], "hexpm", "73bc09fa59b4a0284efb4624335583c528e07ec9ae76aca96ea0673850aec57a"},
+  "telemetry_metrics": {:hex, :telemetry_metrics, "1.2.0", "7632c19c01d88d8aaca5da1a0e8912f5af39b79e7c08a2c253aeb3c14c2c957e", [:mix], [{:telemetry, "~> 0.4 or ~> 1.0", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "71dde12fc29b58b9c77ec17ec319109e5ca848d010fc1965ed4463bba1837c07"},
   "unicode_util_compat": {:hex, :unicode_util_compat, "0.7.1", "a48703a25c170eedadca83b11e88985af08d35f37c6f664d6dcfb106a97782fc", [:rebar3], [], "hexpm", "b3a917854ce3ae233619744ad1e0102e05673136776fb2fa76234f3e03b23642"},
   "vex": {:hex, :vex, "0.8.0", "0a04e3aebe5ec443525c88f3833b4481d97de272f891243b62b18efbda85b121", [:mix], [], "hexpm", "36a37f264b36fe4b0430c9f174d71c59845cf56d9e2ae32960038432b16961ea"},
 }

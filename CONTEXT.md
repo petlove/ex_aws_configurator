@@ -58,6 +58,22 @@ the modules already use; keep new code and docs on them.
 - **Setup**: `ExAwsConfigurator.setup/0`, three phases over the **resolved
   configuration**: topics, queues (with their DLQs), subscriptions. Idempotent.
 
+## Observability
+
+- **Span**: every adapter call that touches AWS (`publish`, `send_message`,
+  `create_topic`, `create_queue`, `subscribe`) and `setup/0` is a `:telemetry.span/3`
+  under `[:ex_aws_configurator, operation]`. `ExAwsConfigurator.Telemetry` documents the
+  events and their metadata (resource name, ARN, region, account, `result`, `error`).
+- **Metrics**: `ExAwsConfigurator.Telemetry.metrics/1`, `Telemetry.Metrics` definitions
+  (count, duration, exception count) for those spans, named under the prefix the app
+  gives. The lib never talks to StatsD/Datadog itself; the app's reporter does.
+- **Propagator**: the module (or `{m, f, a}`) configured under the `propagator` key that
+  returns the trace context as `{name, value}` headers. `SNS.publish/3` and
+  `SQS.send_message/3` add them as string message attributes.
+  `ExAwsConfigurator.Propagator.OpenTelemetry` is the one for OpenTelemetry apps; it also
+  extracts the context on the consumer side. No propagator configured means nothing is
+  injected.
+
 ## Test backend
 
 - **floci**: the local SQS/SNS backend the suite talks to (port 4566), shared by every
