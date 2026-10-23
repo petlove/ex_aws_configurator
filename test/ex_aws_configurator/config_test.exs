@@ -151,6 +151,18 @@ defmodule ExAwsConfigurator.ConfigTest do
       assert [%Topic{name: :an_topic}, %Topic{name: :another_topic}] = queue.topics
     end
 
+    test "the redrive policy points to the dead letter queue, and is nil without one" do
+      queue = Config.get_queue(:an_queue)
+
+      assert %{
+               "deadLetterTargetArn" =>
+                 "arn:aws:sqs:us-east-1:000000000000:prefix_test_an_queue_failures"
+             } =
+               Jason.decode!(queue.attributes.redrive_policy)
+
+      assert %Queue{attributes: %{redrive_policy: nil}} = Config.get_queue(:another_queue)
+    end
+
     test "the queue policy allows the external topic arn" do
       add_topic_to_config(%{
         their_topic: %{prefix: "health_api", environment: "test", account: :external}

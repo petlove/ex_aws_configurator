@@ -30,6 +30,20 @@ defmodule ExAwsConfigurator.SQSTest do
       assert log =~ "Queue #{Queue.full_name(queue)} created successfully"
     end
 
+    test "does not create the queue when its dead letter queue cannot be created" do
+      queue =
+        build(:queue,
+          options: %QueueOptions{dead_letter_queue: true, dead_letter_queue_suffix: "@failures"}
+        )
+
+      assert capture_log(fn ->
+               assert {:error, {:http_error, 400, _}} = SQS.create_queue(queue)
+             end) =~ "Error creating queue #{Queue.full_name(queue)}@failures"
+
+      assert {:error, {:http_error, _, %{code: "AWS.SimpleQueueService.NonExistentQueue"}}} =
+               SQS.send_message(queue, "message")
+    end
+
     test "creates a queue with min attributes" do
       queue = build(:queue, prefix: nil, environment: nil)
 

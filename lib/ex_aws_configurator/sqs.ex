@@ -15,7 +15,6 @@ defmodule ExAwsConfigurator.SQS do
   alias ExAwsConfigurator.{Queue, Topic}
 
   @raw_message_delivery "raw_message_delivery"
-  @fifo_suffix ".fifo"
   @fifo_attributes [:content_based_deduplication, :fifo_queue]
   # Attributes that AWS does not allow changing after the queue exists.
   @immutable_attributes [:fifo_queue]
@@ -25,6 +24,11 @@ defmodule ExAwsConfigurator.SQS do
   @doc """
   Create an sqs queue, or update its mutable attributes (policy, redrive policy,
   timeouts...) when it already exists. That method do NOT subscribe on any topic.
+
+  When the queue has a dead letter queue (`options.dead_letter_queue`), the dead letter
+  queue (`ExAwsConfigurator.Queue.dead_letter_queue/1`) is ensured first; if that fails
+  the error is returned and the queue itself is not touched, so a queue never points its
+  redrive policy to a dead letter queue that does not exist.
 
   raises `ExAwsConfigurator.NoResultsError` if the atom form is used and no
   configuration was found.
@@ -67,14 +71,18 @@ defmodule ExAwsConfigurator.SQS do
   @spec create_queue(Queue.t() | atom, map) :: {:ok, term} | {:error, term}
   def create_queue(queue, tags \\ %{})
 
-  def create_queue(%Queue{} = queue, tags) do
-    queue =
-      if queue.options.dead_letter_queue do
-        create_dead_letter_queue(queue, tags)
-      else
-        queue
-      end
+  def create_queue(%Queue{options: %{dead_letter_queue: true}} = queue, tags) do
+    with {:ok, _} <- queue |> Queue.dead_letter_queue() |> create_queue(tags) do
+      ensure_queue(queue, tags)
+    end
+  end
 
+  def create_queue(%Queue{} = queue, tags), do: ensure_queue(queue, tags)
+
+  def create_queue(queue_name, tags) when is_atom(queue_name),
+    do: queue_name |> ExAwsConfigurator.get_queue() |> create_queue(tags)
+
+  defp ensure_queue(queue, tags) do
     full_name = Queue.full_name(queue)
 
     Logger.info(~s"""
@@ -95,9 +103,6 @@ defmodule ExAwsConfigurator.SQS do
 
     create_or_update_queue(full_name, queue, tags)
   end
-
-  def create_queue(queue_name, tags) when is_atom(queue_name),
-    do: queue_name |> ExAwsConfigurator.get_queue() |> create_queue(tags)
 
   @doc """
   Subscribe a queue into a topic.
@@ -194,32 +199,6 @@ defmodule ExAwsConfigurator.SQS do
 
   defp fetch_topic(%Topic{} = topic), do: topic
   defp fetch_topic(name) when is_atom(name), do: ExAwsConfigurator.get_topic(name)
-
-  defp create_dead_letter_queue(%Queue{attributes: attributes, options: options} = queue, tags) do
-    dead_letter_name = queue |> Queue.full_name() |> format_naming(queue)
-    dead_letter_arn = queue |> Queue.arn() |> format_naming(queue)
-
-    dead_letter_queue =
-      struct(queue, %{
-        attributes:
-          struct(attributes, %{
-            content_based_deduplication: attributes.content_based_deduplication,
-            fifo_queue: attributes.fifo_queue,
-            redrive_policy: nil,
-            policy: nil
-          })
-      })
-
-    create_or_update_queue(dead_letter_name, dead_letter_queue, tags)
-
-    redrive_policy =
-      Jason.encode!(%{
-        maxReceiveCount: options.max_receive_count,
-        deadLetterTargetArn: dead_letter_arn
-      })
-
-    struct(queue, %{attributes: struct(queue.attributes, %{redrive_policy: redrive_policy})})
-  end
 
   defp create_or_update_queue(full_name, queue, tags) do
     case full_name |> SQS.get_queue_url() |> ExAws.request(region: queue.region) do
@@ -331,13 +310,5 @@ defmodule ExAwsConfigurator.SQS do
     @raw_message_delivery
     |> SNS.set_subscription_attributes(true, subscription_arn)
     |> ExAws.request(region: region)
-  end
-
-  defp format_naming(name, %Queue{attributes: attributes, options: options}) do
-    name = name |> String.split(".") |> List.first()
-
-    if attributes.fifo_queue,
-      do: name <> options.dead_letter_queue_suffix <> @fifo_suffix,
-      else: name <> options.dead_letter_queue_suffix
   end
 end

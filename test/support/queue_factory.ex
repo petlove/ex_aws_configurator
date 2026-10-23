@@ -26,9 +26,13 @@ defmodule ExAwsConfigurator.Factory.Queue do
           }
           |> merge_attributes(Map.delete(attrs, :topics))
 
-        policy = Queue.policy(queue)
+        attributes = %{
+          queue.attributes
+          | policy: Queue.policy(queue),
+            redrive_policy: Queue.redrive_policy(queue)
+        }
 
-        %{queue | attributes: %{queue.attributes | policy: policy}}
+        %{queue | attributes: attributes}
       end
 
       @doc "A `%Queue{}` whose name carries the `.fifo` suffix and the fifo attributes."

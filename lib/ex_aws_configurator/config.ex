@@ -165,7 +165,13 @@ defmodule ExAwsConfigurator.Config do
       })
 
     attributes =
-      struct(%QueueAttributes{policy: Queue.policy(queue)}, Map.get(value, :attributes, []))
+      struct(
+        %QueueAttributes{
+          policy: Queue.policy(queue),
+          redrive_policy: Queue.redrive_policy(queue)
+        },
+        Map.get(value, :attributes, [])
+      )
 
     %{queue | attributes: attributes}
   end

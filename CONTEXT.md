@@ -14,9 +14,11 @@ the modules already use; keep new code and docs on them.
   **Topics** it subscribes to. `Queue.full_name/1`, `Queue.arn/1` and `Queue.policy/1`
   are pure; `Queue.url/1` also reads the SQS endpoint from the ExAws config.
 - **Dead letter queue (DLQ)**: the queue that receives the messages a **Queue** failed to
-  process `max_receive_count` times. Named after the queue plus
-  `dead_letter_queue_suffix` (`.fifo` kept at the end). Created by the SQS adapter when
-  `dead_letter_queue: true`.
+  process `max_receive_count` times. It is a **Queue** derived by
+  `Queue.dead_letter_queue/1`: same account, region and naming parts, name plus
+  `dead_letter_queue_suffix` (`.fifo` kept at the end), no policies, no topics.
+  `Queue.redrive_policy/1` links the queue to it. The SQS adapter ensures the DLQ before
+  the queue when `dead_letter_queue: true`, and stops if the DLQ fails.
 - **Subscription**: the link between a **Queue** and one of its **Topics**, created by
   `SQS.subscribe/2`. Optionally sets raw message delivery.
 
