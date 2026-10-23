@@ -3,34 +3,34 @@ defmodule ExAwsConfigurator.ConfigTest do
 
   alias ExAwsConfigurator.{Account, Config, HttpStub, Queue, Topic}
 
+  @app :ex_aws_configurator
   @external_id HttpStub.external_account_id()
 
   setup do
-    previous_accounts = Application.get_env(:ex_aws_configurator, :accounts)
-    previous_mode = Application.get_env(:ex_aws_configurator, :on_unauthorized)
+    previous = Application.get_all_env(@app)
 
     on_exit(fn ->
-      Application.put_env(:ex_aws_configurator, :accounts, previous_accounts || %{})
-      Application.delete_env(:ex_aws_configurator, :on_unauthorized)
-
-      if previous_mode,
-        do: Application.put_env(:ex_aws_configurator, :on_unauthorized, previous_mode)
+      for {key, _} <- Application.get_all_env(@app), do: Application.delete_env(@app, key)
+      Application.put_all_env([{@app, previous}])
     end)
 
     add_external_account_to_config()
     :ok
   end
 
-  describe "default_account/0" do
-    test "is built from the global account_id and region" do
-      assert %Account{name: :default, id: "000000000000", region: "us-east-1"} =
-               Config.default_account()
-    end
-  end
-
   describe "get_account/1" do
-    test ":default returns the default account" do
-      assert Config.get_account(:default) == Config.default_account()
+    test ":default is built from the global account_id and region" do
+      assert %Account{name: :default, id: "000000000000", region: "us-east-1"} =
+               Config.get_account(:default)
+    end
+
+    test "resolves {:system, var} on the global account_id and region" do
+      System.put_env("TEST_ACCOUNT_ID", "123456789101")
+      System.put_env("TEST_REGION", "eu-west-1")
+      Application.put_env(@app, :account_id, {:system, "TEST_ACCOUNT_ID"})
+      Application.put_env(@app, :region, {:system, "TEST_REGION"})
+
+      assert %Account{id: "123456789101", region: "eu-west-1"} = Config.get_account(:default)
     end
 
     test "returns a named account with its own region" do
@@ -41,9 +41,7 @@ defmodule ExAwsConfigurator.ConfigTest do
     test "falls back to the global region and resolves {:system, var} ids" do
       System.put_env("OTHER_ACCOUNT_ID", "111111111111")
 
-      Application.put_env(:ex_aws_configurator, :accounts,
-        other: [id: {:system, "OTHER_ACCOUNT_ID"}]
-      )
+      Application.put_env(@app, :accounts, other: [id: {:system, "OTHER_ACCOUNT_ID"}])
 
       assert %Account{name: :other, id: "111111111111", region: "us-east-1"} =
                Config.get_account(:other)
@@ -56,13 +54,13 @@ defmodule ExAwsConfigurator.ConfigTest do
     end
 
     test "raises when the account has no id" do
-      Application.put_env(:ex_aws_configurator, :accounts, %{broken: %{region: "sa-east-1"}})
+      Application.put_env(@app, :accounts, %{broken: %{region: "sa-east-1"}})
 
       assert_raise ArgumentError, ~r/must have an :id/, fn -> Config.get_account(:broken) end
     end
   end
 
-  describe "get_topic/1 with accounts" do
+  describe "get_topic/1" do
     test "a topic without account belongs to the default account and is not external" do
       add_topic_to_config(%{own_topic: %{prefix: "prefix", environment: "test"}})
 
@@ -127,7 +125,7 @@ defmodule ExAwsConfigurator.ConfigTest do
       assert %Topic{on_unauthorized: :error} = Config.get_topic(:t1)
       assert %Topic{on_unauthorized: :warn} = Config.get_topic(:t2)
 
-      Application.put_env(:ex_aws_configurator, :on_unauthorized, :warn)
+      Application.put_env(@app, :on_unauthorized, :warn)
       assert %Topic{on_unauthorized: :warn} = Config.get_topic(:t1)
     end
 
@@ -136,9 +134,35 @@ defmodule ExAwsConfigurator.ConfigTest do
 
       assert_raise ArgumentError, ~r/invalid :on_unauthorized/, fn -> Config.get_topic(:t3) end
     end
+
+    test "raises when the topic is not configured" do
+      assert_raise ExAwsConfigurator.NoResultsError, ~r/topic `nope`/, fn ->
+        Config.get_topic(:nope)
+      end
+    end
   end
 
-  describe "get_queue/1 with external topics" do
+  describe "get_queue/1" do
+    test "the queue belongs to the default account and carries its topics" do
+      queue = Config.get_queue(:an_queue)
+
+      assert %Queue{account: %Account{name: :default, id: "000000000000"}} = queue
+      assert Queue.arn(queue) == "arn:aws:sqs:us-east-1:000000000000:prefix_test_an_queue"
+      assert [%Topic{name: :an_topic}, %Topic{name: :another_topic}] = queue.topics
+    end
+
+    test "the redrive policy points to the dead letter queue, and is nil without one" do
+      queue = Config.get_queue(:an_queue)
+
+      assert %{
+               "deadLetterTargetArn" =>
+                 "arn:aws:sqs:us-east-1:000000000000:prefix_test_an_queue_failures"
+             } =
+               Jason.decode!(queue.attributes.redrive_policy)
+
+      assert %Queue{attributes: %{redrive_policy: nil}} = Config.get_queue(:another_queue)
+    end
+
     test "the queue policy allows the external topic arn" do
       add_topic_to_config(%{
         their_topic: %{prefix: "health_api", environment: "test", account: :external}
@@ -150,13 +174,63 @@ defmodule ExAwsConfigurator.ConfigTest do
 
       queue = Config.get_queue(:my_queue)
 
-      assert %Queue{account: %Account{name: :default}} = queue
-      assert Queue.arn(queue) == "arn:aws:sqs:us-east-1:000000000000:prefix_test_my_queue"
-
       assert %{"Statement" => [%{"Condition" => %{"ArnLike" => %{"aws:SourceArn" => arns}}}]} =
                Jason.decode!(queue.attributes.policy)
 
       assert arns == ["arn:aws:sns:sa-east-1:#{@external_id}:health_api_test_their_topic"]
+    end
+
+    test "raises when the queue subscribes to a topic that is not configured" do
+      add_queue_to_config(%{orphan: %{topics: [:missing_topic]}})
+
+      assert_raise ExAwsConfigurator.NoResultsError, ~r/topic `missing_topic`/, fn ->
+        Config.get_queue(:orphan)
+      end
+    end
+
+    test "raises when the queue is not configured" do
+      assert_raise ExAwsConfigurator.NoResultsError, ~r/queue `nope`/, fn ->
+        Config.get_queue(:nope)
+      end
+    end
+  end
+
+  describe "load/0" do
+    test "builds every account, topic and queue at once" do
+      add_topic_to_config(%{their_topic: %{prefix: "theirs", account: :external}})
+
+      assert %Config{accounts: accounts, topics: topics, queues: queues} = Config.load()
+
+      assert %{default: %Account{name: :default}, external: %Account{name: :external}} =
+               accounts
+
+      assert %{an_topic: %Topic{}, another_topic: %Topic{}, their_topic: %Topic{external: true}} =
+               topics
+
+      assert %{an_queue: %Queue{topics: [%Topic{name: :an_topic}, _]}, another_queue: %Queue{}} =
+               queues
+    end
+
+    test "works with an empty configuration" do
+      Application.put_env(@app, :topics, %{})
+      Application.put_env(@app, :queues, %{})
+      Application.delete_env(@app, :accounts)
+
+      assert %Config{accounts: %{default: %Account{}}, topics: %{}, queues: %{}} = Config.load()
+    end
+
+    test "fails before touching AWS when a queue points to a missing topic" do
+      add_queue_to_config(%{orphan: %{topics: [:missing_topic]}})
+
+      assert_raise ExAwsConfigurator.NoResultsError, ~r/topic `missing_topic`/, fn ->
+        Config.load()
+      end
+    end
+
+    test "fails before touching AWS when an account has no id" do
+      Application.put_env(@app, :accounts, %{broken: %{region: "sa-east-1"}})
+
+      assert_raise ArgumentError, ~r/`broken` must have an :id/, fn -> Config.load() end
     end
   end
 end

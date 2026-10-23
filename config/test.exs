@@ -24,3 +24,26 @@ config :ex_aws, :sqs,
 config :ex_aws_configurator,
   account_id: "000000000000",
   region: "us-east-1"
+
+# Resources used by the atom form of the adapters (`SNS.publish(:an_topic, ...)`) and by
+# `setup/0`. They are created on the local backend by the suite.
+config :ex_aws_configurator,
+  queues: %{
+    an_queue: %{
+      environment: "test",
+      prefix: "prefix",
+      region: "us-east-1",
+      topics: [:an_topic, :another_topic]
+    },
+    another_queue: %{
+      environment: "test",
+      prefix: "prefix",
+      region: "us-east-1",
+      options: [dead_letter_queue: false],
+      topics: []
+    }
+  },
+  topics: %{
+    an_topic: %{environment: "test", prefix: "prefix"},
+    another_topic: %{environment: nil, region: "sa-east-1"}
+  }

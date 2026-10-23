@@ -1,89 +1,101 @@
 defmodule ExAwsConfigurator.SQSTest do
-  use ExAwsConfigurator.Case
+  use ExAwsConfigurator.Case, async: true
 
   import ExUnit.CaptureLog
 
-  alias ExAwsConfigurator.{Queue, SNS, SQS}
+  alias ExAwsConfigurator.{Queue, QueueOptions, SNS, SQS}
 
   doctest SQS
 
   @moduletag capture_log: true
 
-  setup do
-    add_queue_to_config(build(:queue_config, name: :queue_name))
-    add_queue_to_config(%{queue_min_config: %{}})
-    add_topic_to_config(build(:topic_config, name: :topic_name))
-    add_queue_to_config(build(:queue_config, name: :raw_queue, raw_message_delivery: true))
-    add_queue_to_config(build(:queue_config, name: :"!nv@l!d-N@me"))
+  describe "create_queue/2 with a struct" do
+    test "creates the queue" do
+      queue = build(:queue)
 
-    add_queue_to_config(
-      build(:queue_config,
-        name: :"queue.fifo",
-        content_based_deduplication: true,
-        fifo_queue: true
-      )
-    )
-
-    add_queue_to_config(
-      build(:queue_config, name: :without_failures_queue, dead_letter_queue: false)
-    )
-
-    SQS.create_queue(:queue_name)
-    SNS.create_topic(:topic_name)
-    SQS.create_queue(:raw_queue)
-
-    add_queue_to_config(build(:queue_config, name: :non_created_queue))
-  end
-
-  describe "create_queue/1" do
-    test "create queue when receive a atom with correct configuration" do
       assert capture_log(fn ->
-               assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_name)
-             end) =~ ~r/(created|updated) successfully/
+               assert {:ok, %{status_code: 200}} = SQS.create_queue(queue)
+             end) =~ "Queue #{Queue.full_name(queue)} created successfully"
     end
 
-    test "create queue without dead letter queue" do
-      assert capture_log(fn ->
-               assert {:ok, %{status_code: 200}} = SQS.create_queue(:without_failures_queue)
-             end) =~ ~r/(created|updated) successfully/
+    test "creates the queue and its dead letter queue" do
+      queue = build(:queue, options: %QueueOptions{dead_letter_queue: true})
+
+      log =
+        capture_log(fn ->
+          assert {:ok, %{status_code: 200}} = SQS.create_queue(queue)
+        end)
+
+      assert log =~ "Queue #{Queue.full_name(queue)}_failures created successfully"
+      assert log =~ "Queue #{Queue.full_name(queue)} created successfully"
     end
 
-    test "create queue with min attributes" do
+    test "does not create the queue when its dead letter queue cannot be created" do
+      queue =
+        build(:queue,
+          options: %QueueOptions{dead_letter_queue: true, dead_letter_queue_suffix: "@failures"}
+        )
+
       assert capture_log(fn ->
-               assert {:ok, %{status_code: 200}} = SQS.create_queue(:queue_min_config)
-             end) =~ ~r/(created|updated) successfully/
+               assert {:error, {:http_error, 400, _}} = SQS.create_queue(queue)
+             end) =~ "Error creating queue #{Queue.full_name(queue)}@failures"
+
+      assert {:error, {:http_error, _, %{code: "AWS.SimpleQueueService.NonExistentQueue"}}} =
+               SQS.send_message(queue, "message")
     end
 
-    test "create a fifo queue" do
-      assert capture_log(fn ->
-               assert {:ok, %{status_code: 200}} = SQS.create_queue(:"queue.fifo")
+    test "creates a queue with min attributes" do
+      queue = build(:queue, prefix: nil, environment: nil)
 
-               queue = ExAwsConfigurator.get_queue(:"queue.fifo")
+      assert {:ok, %{status_code: 200}} = SQS.create_queue(queue)
+    end
 
-               assert %{attributes: %{content_based_deduplication: true, fifo_queue: true}} =
-                        queue
+    test "creates a fifo queue with its dead letter queue" do
+      queue = build(:fifo_queue, options: %QueueOptions{dead_letter_queue: true})
 
-               assert Queue.full_name(queue) == "prefix_test_queue.fifo"
-             end) =~ ~r/(created|updated) successfully/
+      log =
+        capture_log(fn ->
+          assert {:ok, %{status_code: 200}} = SQS.create_queue(queue)
+        end)
+
+      [name | _] = queue |> Queue.full_name() |> String.split(".")
+
+      assert log =~ "Queue #{name}_failures.fifo created successfully"
+      assert log =~ "Queue #{name}.fifo created successfully"
     end
 
     test "updates the queue when it already exists" do
-      add_queue_to_config(build(:queue_config, name: :idempotent_queue))
+      queue = build(:queue)
 
-      assert {:ok, %{status_code: 200}} = SQS.create_queue(:idempotent_queue)
+      assert {:ok, %{status_code: 200}} = SQS.create_queue(queue)
 
       assert capture_log(fn ->
-               assert {:ok, %{status_code: 200}} = SQS.create_queue(:idempotent_queue)
-             end) =~ "Queue prefix_test_idempotent_queue updated successfully"
+               assert {:ok, %{status_code: 200}} = SQS.create_queue(queue)
+             end) =~ "Queue #{Queue.full_name(queue)} updated successfully"
     end
 
-    test "do not create an invalid queue" do
+    test "tags the queue" do
+      queue = build(:queue)
+
+      assert {:ok, %{status_code: 200}} = SQS.create_queue(queue, %{"team" => "platform"})
+      assert {:ok, %{status_code: 200}} = SQS.create_queue(queue, %{"team" => "platform"})
+    end
+
+    test "does not create an invalid queue" do
+      queue = build(:queue, name: :"!nv@l!d-N@me")
+
       assert capture_log(fn ->
-               assert {:error, _} = SQS.create_queue(:"!nv@l!d-N@me")
+               assert {:error, _} = SQS.create_queue(queue)
              end) =~ "Error creating queue"
     end
+  end
 
-    test "raise when tries to create a queue without configuration" do
+  describe "create_queue/2 with an atom" do
+    test "fetches the queue from the configuration and creates it" do
+      assert {:ok, %{status_code: 200}} = SQS.create_queue(:another_queue)
+    end
+
+    test "raises when the queue is not configured" do
       assert_raise ExAwsConfigurator.NoResultsError, fn ->
         SQS.create_queue(:not_configured_queue)
       end
@@ -91,66 +103,93 @@ defmodule ExAwsConfigurator.SQSTest do
   end
 
   describe "subscribe/2" do
-    test "subscribe queue to an topic when is atom and with valid configuration" do
-      assert {:ok, %{status_code: 200}} = SQS.subscribe(:queue_name, :topic_name)
+    setup do
+      topic = build(:topic)
+      {:ok, _} = SNS.create_topic(topic)
+
+      queue = build(:queue, topics: [topic])
+      {:ok, _} = SQS.create_queue(queue)
+
+      %{queue: queue, topic: topic}
     end
 
-    test "subscribe queue to an topic when raw_message_delivery is true" do
-      assert {:ok, %{status_code: 200}} = SQS.subscribe(:raw_queue, :topic_name)
+    test "subscribes the queue to the topic", %{queue: queue, topic: topic} do
+      assert {:ok, %{status_code: 200}} = SQS.subscribe(queue, topic)
     end
 
-    test "returns the AuthorizationError when the external topic owner did not allow it" do
-      add_external_account_to_config()
-      add_topic_to_config(%{their_topic: %{prefix: "theirs", account: :external}})
+    test "sets raw message delivery when the queue asks for it", %{topic: topic} do
+      queue =
+        build(:queue, topics: [topic], options: %QueueOptions{raw_message_delivery: true})
+
+      {:ok, _} = SQS.create_queue(queue)
+
+      assert {:ok, %{status_code: 200}} = SQS.subscribe(queue, topic)
+    end
+
+    test "returns the AuthorizationError when the external topic owner did not allow it",
+         %{queue: queue} do
+      topic = build(:external_topic)
 
       assert capture_log(fn ->
                assert {:error, {:http_error, 403, %{code: "AuthorizationError"}}} =
-                        SQS.subscribe(:queue_name, :their_topic)
-             end) =~ "Not authorized to subscribe queue prefix_test_queue_name"
+                        SQS.subscribe(queue, topic)
+             end) =~ "Not authorized to subscribe queue #{Queue.full_name(queue)}"
     end
 
-    test "only warns when the external topic is configured with on_unauthorized: :warn" do
-      add_external_account_to_config()
-
-      add_topic_to_config(%{
-        their_topic: %{prefix: "theirs", account: :external, on_unauthorized: :warn}
-      })
+    test "only warns when the external topic is configured with on_unauthorized: :warn",
+         %{queue: queue} do
+      topic = build(:external_topic, on_unauthorized: :warn)
 
       log =
         capture_log(fn ->
-          assert {:ok, :unauthorized} = SQS.subscribe(:queue_name, :their_topic)
+          assert {:ok, :unauthorized} = SQS.subscribe(queue, topic)
         end)
 
       assert log =~ "[warning]"
-      assert log =~ "Ask the topic owner (account 829683656197)"
+      assert log =~ "Ask the topic owner (account #{topic.account.id})"
       assert log =~ ~s("Action": [\n    "sns:Subscribe")
       assert log =~ ~s("AWS": "arn:aws:iam::000000000000:root")
     end
 
-    test "raise when tries to subscribe a queue without queue configuration" do
+    test "accepts the configured names, in any combination", %{queue: queue, topic: topic} do
+      assert {:ok, %{status_code: 200}} = SQS.subscribe(:an_queue, :an_topic)
+      assert {:ok, %{status_code: 200}} = SQS.subscribe(queue, :an_topic)
+      assert {:ok, %{status_code: 200}} = SQS.subscribe(:an_queue, topic)
+    end
+
+    test "raises when the queue is not configured" do
       assert_raise ExAwsConfigurator.NoResultsError, fn ->
-        SQS.subscribe(:not_configured_queue, :topic_name)
+        SQS.subscribe(:not_configured_queue, :an_topic)
       end
     end
 
-    test "raise when tries to subscribe a topic without configuration" do
+    test "raises when the topic is not configured" do
       assert_raise ExAwsConfigurator.NoResultsError, fn ->
-        SQS.subscribe(:queue_name, :not_configured_topic)
+        SQS.subscribe(:an_queue, :not_configured_topic)
       end
     end
   end
 
-  describe "send_message/2" do
-    test "send an message to an existent queue" do
-      assert {:ok, %{status_code: 200}} = SQS.send_message(:queue_name, "message")
+  describe "send_message/3" do
+    test "sends a message to an existent queue" do
+      queue = build(:queue)
+      {:ok, _} = SQS.create_queue(queue)
+
+      assert {:ok, %{status_code: 200}} = SQS.send_message(queue, "message")
     end
 
-    test "public an message to an non existent queue" do
+    test "returns the error for a non existent queue" do
       assert {:error, {:http_error, _, %{code: "AWS.SimpleQueueService.NonExistentQueue"}}} =
-               SQS.send_message(:non_created_queue, "message")
+               SQS.send_message(build(:queue), "message")
     end
 
-    test "raise when tries to publish into an no configured queue" do
+    test "accepts the configured queue name" do
+      {:ok, _} = SQS.create_queue(:an_queue)
+
+      assert {:ok, %{status_code: 200}} = SQS.send_message(:an_queue, "message")
+    end
+
+    test "raises when the queue is not configured" do
       assert_raise ExAwsConfigurator.NoResultsError, fn ->
         SQS.send_message(:not_configured_queue, "message")
       end

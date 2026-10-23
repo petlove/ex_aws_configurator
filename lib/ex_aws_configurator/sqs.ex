@@ -1,11 +1,20 @@
 defmodule ExAwsConfigurator.SQS do
+  @moduledoc """
+  SQS adapter: creates and updates queues (and their dead letter queues), subscribes
+  them to topics and sends messages.
+
+  Every function accepts either a `ExAwsConfigurator.Queue`/`ExAwsConfigurator.Topic`
+  struct or the atom that names the resource in the configuration. The atom form
+  fetches the struct with `ExAwsConfigurator.get_queue/1`/`get_topic/1` and delegates
+  to the struct form.
+  """
+
   require Logger
 
   alias ExAws.{SNS, SQS}
   alias ExAwsConfigurator.{Queue, Topic}
 
   @raw_message_delivery "raw_message_delivery"
-  @fifo_suffix ".fifo"
   @fifo_attributes [:content_based_deduplication, :fifo_queue]
   # Attributes that AWS does not allow changing after the queue exists.
   @immutable_attributes [:fifo_queue]
@@ -13,11 +22,16 @@ defmodule ExAwsConfigurator.SQS do
   @authorization_error "AuthorizationError"
 
   @doc """
-  Create an sqs queue based on ex_aws_configurator configuration, or update its mutable
-  attributes (policy, redrive policy, timeouts...) when it already exists. That method
-  do NOT subscribe on any topic.
+  Create an sqs queue, or update its mutable attributes (policy, redrive policy,
+  timeouts...) when it already exists. That method do NOT subscribe on any topic.
 
-  raises `ExAwsConfigurator.NoResultsError` if no configuration was found.
+  When the queue has a dead letter queue (`options.dead_letter_queue`), the dead letter
+  queue (`ExAwsConfigurator.Queue.dead_letter_queue/1`) is ensured first; if that fails
+  the error is returned and the queue itself is not touched, so a queue never points its
+  redrive policy to a dead letter queue that does not exist.
+
+  raises `ExAwsConfigurator.NoResultsError` if the atom form is used and no
+  configuration was found.
 
   for the example below, we will consider the following settings
 
@@ -43,30 +57,32 @@ defmodule ExAwsConfigurator.SQS do
 
   ## Examples
 
-      ExAwsConfigurator.create_queue(:queue_name)
+      ExAwsConfigurator.SQS.create_queue(:an_queue)
       #=> {:ok, term()}
 
   will create an queue named `prefix + environment + map_key`, the result will be _queue_prefix_environment_an_queue_ on region _us-east-1_
 
   the response term() will be the `ExAws` response without any modification
 
-      ExAwsConfigurator.get_queue(:not_exist)
+      ExAwsConfigurator.SQS.create_queue(:not_exist)
       #=> ** (ExAwsConfigurator.NoResultsError) the configuration for queue not_exist is not set
 
   """
+  @spec create_queue(Queue.t() | atom, map) :: {:ok, term} | {:error, term}
   def create_queue(queue, tags \\ %{})
 
-  @spec create_queue(atom, map) :: {:ok, term} | {:error, term}
-  def create_queue(queue_name, tags) when is_atom(queue_name) do
-    queue = ExAwsConfigurator.get_queue(queue_name)
+  def create_queue(%Queue{options: %{dead_letter_queue: true}} = queue, tags) do
+    with {:ok, _} <- queue |> Queue.dead_letter_queue() |> create_queue(tags) do
+      ensure_queue(queue, tags)
+    end
+  end
 
-    queue =
-      if queue.options.dead_letter_queue do
-        create_dead_letter_queue(queue, tags)
-      else
-        queue
-      end
+  def create_queue(%Queue{} = queue, tags), do: ensure_queue(queue, tags)
 
+  def create_queue(queue_name, tags) when is_atom(queue_name),
+    do: queue_name |> ExAwsConfigurator.get_queue() |> create_queue(tags)
+
+  defp ensure_queue(queue, tags) do
     full_name = Queue.full_name(queue)
 
     Logger.info(~s"""
@@ -89,7 +105,7 @@ defmodule ExAwsConfigurator.SQS do
   end
 
   @doc """
-  Subscribe a queue into a topic based on ex_aws_configurator configuration.
+  Subscribe a queue into a topic.
 
   When the topic belongs to an external account, the subscribe call only succeeds if the
   topic owner allows `sns:Subscribe` from this account. When it is denied:
@@ -98,11 +114,8 @@ defmodule ExAwsConfigurator.SQS do
     * with `on_unauthorized: :warn` a warning with the policy statement the owner must
       add is logged and `{:ok, :unauthorized}` is returned.
   """
-  @spec subscribe(atom, atom) :: {:ok, term} | {:error, term}
-  def subscribe(queue_name, topic_name) when is_atom(topic_name) and is_atom(queue_name) do
-    queue = ExAwsConfigurator.get_queue(queue_name)
-    topic = ExAwsConfigurator.get_topic(topic_name)
-
+  @spec subscribe(Queue.t() | atom, Topic.t() | atom) :: {:ok, term} | {:error, term}
+  def subscribe(%Queue{} = queue, %Topic{} = topic) do
     Logger.info("Subscribe queue #{Queue.full_name(queue)} to topic #{Topic.full_name(topic)}")
 
     result =
@@ -125,10 +138,13 @@ defmodule ExAwsConfigurator.SQS do
     end
   end
 
+  def subscribe(queue, topic), do: subscribe(fetch_queue(queue), fetch_topic(topic))
+
   @doc """
   Send message to a queue build the correct queue name based on queue configuration
 
-  raises `ExAwsConfigurator.NoResultsError` if no configuration was found.
+  raises `ExAwsConfigurator.NoResultsError` if the atom form is used and no
+  configuration was found.
 
   for the example below, we will consider the following settings
 
@@ -147,27 +163,26 @@ defmodule ExAwsConfigurator.SQS do
 
   ## Examples
 
-      ExAwsConfigurator.send_message(:an_queue, "message")
+      ExAwsConfigurator.SQS.send_message(:an_queue, "message")
       #=> {:ok, term()}
 
   will send a message to queue named _queue_prefix_environment_an_queue_ on region _us-east-1_
 
   the response term() will be the `ExAws` response without any modification
 
-      ExAwsConfigurator.send_message(:not_exist)
+      ExAwsConfigurator.SQS.send_message(:not_exist, "message")
       #=> ** (ExAwsConfigurator.NoResultsError) the configuration for queue not_exist is not set
 
   another possible error is when configuration exists but queue is not created, in this case the response will be {:error, %{status_code: 404, ...}} returned by AWS response
 
-      ExAwsConfigurator.send_message(:not_exist)
+      ExAwsConfigurator.SQS.send_message(:not_created, "message")
       #=> {:error, term()}
   """
-  def send_message(queue_name, message, opts \\ [])
+  @spec send_message(Queue.t() | atom, String.t(), SQS.sqs_message_opts()) ::
+          {:ok, term} | {:error, term}
+  def send_message(queue, message, opts \\ [])
 
-  @spec send_message(atom, String.t(), SQS.sqs_message_opts()) :: {:ok, term} | {:error, term}
-  def send_message(queue_name, message, opts) when is_atom(queue_name) do
-    queue = ExAwsConfigurator.get_queue(queue_name)
-
+  def send_message(%Queue{} = queue, message, opts) do
     Logger.info("Sending message to #{Queue.full_name(queue)}")
 
     queue
@@ -176,31 +191,14 @@ defmodule ExAwsConfigurator.SQS do
     |> ExAws.request(region: queue.region)
   end
 
-  defp create_dead_letter_queue(%Queue{attributes: attributes, options: options} = queue, tags) do
-    dead_letter_name = queue |> Queue.full_name() |> format_naming(queue)
-    dead_letter_arn = queue |> Queue.arn() |> format_naming(queue)
+  def send_message(queue_name, message, opts) when is_atom(queue_name),
+    do: queue_name |> ExAwsConfigurator.get_queue() |> send_message(message, opts)
 
-    dead_letter_queue =
-      struct(queue, %{
-        attributes:
-          struct(attributes, %{
-            content_based_deduplication: attributes.content_based_deduplication,
-            fifo_queue: attributes.fifo_queue,
-            redrive_policy: nil,
-            policy: nil
-          })
-      })
+  defp fetch_queue(%Queue{} = queue), do: queue
+  defp fetch_queue(name) when is_atom(name), do: ExAwsConfigurator.get_queue(name)
 
-    create_or_update_queue(dead_letter_name, dead_letter_queue, tags)
-
-    redrive_policy =
-      Jason.encode!(%{
-        maxReceiveCount: options.max_receive_count,
-        deadLetterTargetArn: dead_letter_arn
-      })
-
-    struct(queue, %{attributes: struct(queue.attributes, %{redrive_policy: redrive_policy})})
-  end
+  defp fetch_topic(%Topic{} = topic), do: topic
+  defp fetch_topic(name) when is_atom(name), do: ExAwsConfigurator.get_topic(name)
 
   defp create_or_update_queue(full_name, queue, tags) do
     case full_name |> SQS.get_queue_url() |> ExAws.request(region: queue.region) do
@@ -298,9 +296,9 @@ defmodule ExAwsConfigurator.SQS do
   defp subscribe_statement(topic, queue) do
     Jason.encode!(
       %{
-        Sid: "AllowSubscribeFrom#{Queue.account_id(queue)}",
+        Sid: "AllowSubscribeFrom#{queue.account.id}",
         Effect: "Allow",
-        Principal: %{AWS: "arn:aws:iam::#{Queue.account_id(queue)}:root"},
+        Principal: %{AWS: "arn:aws:iam::#{queue.account.id}:root"},
         Action: ["sns:Subscribe", "sns:GetTopicAttributes"],
         Resource: Topic.arn(topic)
       },
@@ -312,13 +310,5 @@ defmodule ExAwsConfigurator.SQS do
     @raw_message_delivery
     |> SNS.set_subscription_attributes(true, subscription_arn)
     |> ExAws.request(region: region)
-  end
-
-  defp format_naming(name, %Queue{attributes: attributes, options: options}) do
-    name = name |> String.split(".") |> List.first()
-
-    if attributes.fifo_queue,
-      do: name <> options.dead_letter_queue_suffix <> @fifo_suffix,
-      else: name <> options.dead_letter_queue_suffix
   end
 end
