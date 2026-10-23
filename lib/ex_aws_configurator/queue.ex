@@ -64,19 +64,24 @@ defmodule ExAwsConfigurator.Queue do
     |> Enum.join(queue.separator)
   end
 
-  @doc "get queue url"
+  @doc """
+  get queue url
+
+  The endpoint (scheme and host) comes from the `ExAws` sqs config; the account id
+  comes from the queue account.
+  """
   @spec url(t()) :: String.t()
   def url(%__MODULE__{} = queue) do
     %{scheme: scheme, host: host} = ExAws.Config.new(:sqs)
 
-    ["#{scheme}#{host}", account_id(queue), full_name(queue)]
+    ["#{scheme}#{host}", queue.account.id, full_name(queue)]
     |> Enum.join("/")
   end
 
-  @doc "get queue arn"
+  @doc "get queue arn, composed from the queue region, the id of the queue account and `full_name/1`"
   @spec arn(t()) :: String.t()
   def arn(%__MODULE__{} = queue) do
-    ["arn:aws:sqs", queue.region, account_id(queue), full_name(queue)]
+    ["arn:aws:sqs", queue.region, queue.account.id, full_name(queue)]
     |> Enum.join(":")
   end
 
@@ -106,9 +111,4 @@ defmodule ExAwsConfigurator.Queue do
     }
     |> Jason.encode!()
   end
-
-  @doc false
-  @spec account_id(t()) :: String.t() | nil
-  def account_id(%__MODULE__{account: %Account{id: id}}) when is_binary(id), do: id
-  def account_id(%__MODULE__{}), do: ExAwsConfigurator.get_env(:account_id)
 end

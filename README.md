@@ -126,15 +126,27 @@ Besides `account_id`, `region`, `environment`, `prefix`, `separator` and `attrib
 - `setup/0` now fails with `{:error, :subscriptions}` when a subscription cannot be created (before, subscription errors were ignored);
 - `setup/0` needs new IAM permissions: `sqs:GetQueueUrl`, `sqs:SetQueueAttributes`, `sqs:TagQueue`, `sns:GetTopicAttributes` and `sns:SetTopicAttributes`;
 - `ExAwsConfigurator.SNS.publish/3` accepts `opts` forwarded to `ExAws.SNS.publish/2` (for example `message_attributes`). Binaries are published as they are instead of being JSON encoded; maps and lists are still JSON encoded;
-- the raw message delivery attribute of a subscription is now set on the topic region.
+- the raw message delivery attribute of a subscription is now set on the topic region;
+- `ExAwsConfigurator.get_env/1`, `ExAwsConfigurator.Queue.account_id/1`, `ExAwsConfigurator.Topic.account_id/1` and `ExAwsConfigurator.Config.default_account/0` were removed. `ExAwsConfigurator.Config` is the only module that reads the application env, and every `%Queue{}`/`%Topic{}` it builds carries its `%Account{}`, so `Queue.arn/1`, `Queue.url/1` and `Topic.arn/1` no longer fall back to the global `account_id`. Use `ExAwsConfigurator.get_account(:default)` for the default account;
+- the global `region`, `environment` and `on_unauthorized` keys accept `{:system, "ENV_VAR"}`, like `account_id` already did;
+- `ExAwsConfigurator.setup/0` resolves and validates the whole configuration (`ExAwsConfigurator.Config.load/0`) before touching AWS: a queue subscribed to a topic that is not configured, an account without `id` or an invalid `arn` now raise before anything is created.
 
-if you prefer more control on **topics** and **queues** criation you can use create/subscribe methods separately
+if you prefer more control on **topics** and **queues** creation you can use the create/subscribe functions separately
 
-`ExAwsConfigurator.SQS.create_queue(:an_queue)`
+```elixir
+ExAwsConfigurator.SNS.create_topic(:an_topic)
+ExAwsConfigurator.SQS.create_queue(:an_queue)
+ExAwsConfigurator.SQS.subscribe(:an_queue, :an_topic)
+```
 
-`ExAwsConfigurator.SQS.subscribe(:an_topic, :an_queue)`
+Every function of `ExAwsConfigurator.SNS` and `ExAwsConfigurator.SQS` accepts either the atom that names the resource in the configuration (the key MUST be present on `config.exs`) or the `%ExAwsConfigurator.Topic{}`/`%ExAwsConfigurator.Queue{}` struct itself, which is handy to drive the adapters from a struct you built or fetched once:
 
-PS: keys MUST be present on `config.exs` to work correctly.
+```elixir
+queue = ExAwsConfigurator.get_queue(:an_queue)
+
+ExAwsConfigurator.SQS.create_queue(queue)
+for topic <- queue.topics, do: ExAwsConfigurator.SQS.subscribe(queue, topic)
+```
 
 this package provide some helpers to **publish** or **send message** too, for complete use please, check our [documentation](https://hexdocs.pm/ex_aws_configurator/api-reference.html)
 

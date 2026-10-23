@@ -1,5 +1,5 @@
 defmodule ExAwsConfigurator.TopicTest do
-  use ExAwsConfigurator.Case
+  use ExAwsConfigurator.Case, async: true
 
   alias ExAwsConfigurator.{Topic, TopicAttributes}
 
@@ -11,7 +11,7 @@ defmodule ExAwsConfigurator.TopicTest do
         region: "reg",
         prefix: "pref",
         environment: "env",
-        name: "topic"
+        name: :topic
       })
 
     {:ok, %{topic: topic}}

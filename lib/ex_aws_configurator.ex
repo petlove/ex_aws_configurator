@@ -10,7 +10,9 @@ defmodule ExAwsConfigurator do
   @doc """
   Ensure every topic, queue and subscription present in the configuration exists on AWS.
 
-  The setup runs in three phases and is idempotent:
+  The whole configuration is resolved and validated first (see
+  `ExAwsConfigurator.Config.load/0`), then the setup runs in three phases and is
+  idempotent:
 
     1. topics: created when missing, updated otherwise. Topics owned by an external
        account are skipped (their owner manages them);
@@ -24,25 +26,20 @@ defmodule ExAwsConfigurator do
   """
   @spec setup() :: :ok | {:error, :topics | :queues | :subscriptions}
   def setup do
-    topics = get_env(:topics)
-    queues = get_env(:queues)
+    %Config{topics: topics, queues: queues} = Config.load()
 
     topics_not_created =
-      for {topic_name, _} <- topics,
-          match?({:error, _}, SNS.create_topic(topic_name)),
-          do: topic_name
+      for {name, topic} <- topics, match?({:error, _}, SNS.create_topic(topic)), do: name
 
     queues_not_created =
-      for {queue_name, _} <- queues,
-          match?({:error, _}, SQS.create_queue(queue_name)),
-          do: queue_name
+      for {name, queue} <- queues, match?({:error, _}, SQS.create_queue(queue)), do: name
 
     subscriptions_not_created =
-      for {queue_name, queue_config} <- queues,
-          queue_name not in queues_not_created,
-          topic_name <- queue_config[:topics] || [],
-          match?({:error, _}, SQS.subscribe(queue_name, topic_name)),
-          do: {queue_name, topic_name}
+      for {name, queue} <- queues,
+          name not in queues_not_created,
+          topic <- queue.topics,
+          match?({:error, _}, SQS.subscribe(queue, topic)),
+          do: {name, topic.name}
 
     cond do
       topics_not_created != [] ->
@@ -119,19 +116,4 @@ defmodule ExAwsConfigurator do
   """
   @spec get_account(atom) :: Account.t()
   defdelegate get_account(name), to: Config
-
-  @doc false
-  @spec get_env(atom) :: any | no_return
-  def get_env(key) when is_atom(key) do
-    case Application.fetch_env(:ex_aws_configurator, key) do
-      {:ok, {:system, var}} when is_binary(var) ->
-        System.get_env(var)
-
-      {:ok, value} ->
-        value
-
-      :error ->
-        raise ExAwsConfigurator.NoResultsError, name: key
-    end
-  end
 end

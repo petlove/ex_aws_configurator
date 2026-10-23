@@ -1,4 +1,14 @@
 defmodule ExAwsConfigurator.SQS do
+  @moduledoc """
+  SQS adapter: creates and updates queues (and their dead letter queues), subscribes
+  them to topics and sends messages.
+
+  Every function accepts either a `ExAwsConfigurator.Queue`/`ExAwsConfigurator.Topic`
+  struct or the atom that names the resource in the configuration. The atom form
+  fetches the struct with `ExAwsConfigurator.get_queue/1`/`get_topic/1` and delegates
+  to the struct form.
+  """
+
   require Logger
 
   alias ExAws.{SNS, SQS}
@@ -13,11 +23,11 @@ defmodule ExAwsConfigurator.SQS do
   @authorization_error "AuthorizationError"
 
   @doc """
-  Create an sqs queue based on ex_aws_configurator configuration, or update its mutable
-  attributes (policy, redrive policy, timeouts...) when it already exists. That method
-  do NOT subscribe on any topic.
+  Create an sqs queue, or update its mutable attributes (policy, redrive policy,
+  timeouts...) when it already exists. That method do NOT subscribe on any topic.
 
-  raises `ExAwsConfigurator.NoResultsError` if no configuration was found.
+  raises `ExAwsConfigurator.NoResultsError` if the atom form is used and no
+  configuration was found.
 
   for the example below, we will consider the following settings
 
@@ -43,23 +53,21 @@ defmodule ExAwsConfigurator.SQS do
 
   ## Examples
 
-      ExAwsConfigurator.create_queue(:queue_name)
+      ExAwsConfigurator.SQS.create_queue(:an_queue)
       #=> {:ok, term()}
 
   will create an queue named `prefix + environment + map_key`, the result will be _queue_prefix_environment_an_queue_ on region _us-east-1_
 
   the response term() will be the `ExAws` response without any modification
 
-      ExAwsConfigurator.get_queue(:not_exist)
+      ExAwsConfigurator.SQS.create_queue(:not_exist)
       #=> ** (ExAwsConfigurator.NoResultsError) the configuration for queue not_exist is not set
 
   """
+  @spec create_queue(Queue.t() | atom, map) :: {:ok, term} | {:error, term}
   def create_queue(queue, tags \\ %{})
 
-  @spec create_queue(atom, map) :: {:ok, term} | {:error, term}
-  def create_queue(queue_name, tags) when is_atom(queue_name) do
-    queue = ExAwsConfigurator.get_queue(queue_name)
-
+  def create_queue(%Queue{} = queue, tags) do
     queue =
       if queue.options.dead_letter_queue do
         create_dead_letter_queue(queue, tags)
@@ -88,8 +96,11 @@ defmodule ExAwsConfigurator.SQS do
     create_or_update_queue(full_name, queue, tags)
   end
 
+  def create_queue(queue_name, tags) when is_atom(queue_name),
+    do: queue_name |> ExAwsConfigurator.get_queue() |> create_queue(tags)
+
   @doc """
-  Subscribe a queue into a topic based on ex_aws_configurator configuration.
+  Subscribe a queue into a topic.
 
   When the topic belongs to an external account, the subscribe call only succeeds if the
   topic owner allows `sns:Subscribe` from this account. When it is denied:
@@ -98,11 +109,8 @@ defmodule ExAwsConfigurator.SQS do
     * with `on_unauthorized: :warn` a warning with the policy statement the owner must
       add is logged and `{:ok, :unauthorized}` is returned.
   """
-  @spec subscribe(atom, atom) :: {:ok, term} | {:error, term}
-  def subscribe(queue_name, topic_name) when is_atom(topic_name) and is_atom(queue_name) do
-    queue = ExAwsConfigurator.get_queue(queue_name)
-    topic = ExAwsConfigurator.get_topic(topic_name)
-
+  @spec subscribe(Queue.t() | atom, Topic.t() | atom) :: {:ok, term} | {:error, term}
+  def subscribe(%Queue{} = queue, %Topic{} = topic) do
     Logger.info("Subscribe queue #{Queue.full_name(queue)} to topic #{Topic.full_name(topic)}")
 
     result =
@@ -125,10 +133,13 @@ defmodule ExAwsConfigurator.SQS do
     end
   end
 
+  def subscribe(queue, topic), do: subscribe(fetch_queue(queue), fetch_topic(topic))
+
   @doc """
   Send message to a queue build the correct queue name based on queue configuration
 
-  raises `ExAwsConfigurator.NoResultsError` if no configuration was found.
+  raises `ExAwsConfigurator.NoResultsError` if the atom form is used and no
+  configuration was found.
 
   for the example below, we will consider the following settings
 
@@ -147,27 +158,26 @@ defmodule ExAwsConfigurator.SQS do
 
   ## Examples
 
-      ExAwsConfigurator.send_message(:an_queue, "message")
+      ExAwsConfigurator.SQS.send_message(:an_queue, "message")
       #=> {:ok, term()}
 
   will send a message to queue named _queue_prefix_environment_an_queue_ on region _us-east-1_
 
   the response term() will be the `ExAws` response without any modification
 
-      ExAwsConfigurator.send_message(:not_exist)
+      ExAwsConfigurator.SQS.send_message(:not_exist, "message")
       #=> ** (ExAwsConfigurator.NoResultsError) the configuration for queue not_exist is not set
 
   another possible error is when configuration exists but queue is not created, in this case the response will be {:error, %{status_code: 404, ...}} returned by AWS response
 
-      ExAwsConfigurator.send_message(:not_exist)
+      ExAwsConfigurator.SQS.send_message(:not_created, "message")
       #=> {:error, term()}
   """
-  def send_message(queue_name, message, opts \\ [])
+  @spec send_message(Queue.t() | atom, String.t(), SQS.sqs_message_opts()) ::
+          {:ok, term} | {:error, term}
+  def send_message(queue, message, opts \\ [])
 
-  @spec send_message(atom, String.t(), SQS.sqs_message_opts()) :: {:ok, term} | {:error, term}
-  def send_message(queue_name, message, opts) when is_atom(queue_name) do
-    queue = ExAwsConfigurator.get_queue(queue_name)
-
+  def send_message(%Queue{} = queue, message, opts) do
     Logger.info("Sending message to #{Queue.full_name(queue)}")
 
     queue
@@ -175,6 +185,15 @@ defmodule ExAwsConfigurator.SQS do
     |> SQS.send_message(message, opts)
     |> ExAws.request(region: queue.region)
   end
+
+  def send_message(queue_name, message, opts) when is_atom(queue_name),
+    do: queue_name |> ExAwsConfigurator.get_queue() |> send_message(message, opts)
+
+  defp fetch_queue(%Queue{} = queue), do: queue
+  defp fetch_queue(name) when is_atom(name), do: ExAwsConfigurator.get_queue(name)
+
+  defp fetch_topic(%Topic{} = topic), do: topic
+  defp fetch_topic(name) when is_atom(name), do: ExAwsConfigurator.get_topic(name)
 
   defp create_dead_letter_queue(%Queue{attributes: attributes, options: options} = queue, tags) do
     dead_letter_name = queue |> Queue.full_name() |> format_naming(queue)
@@ -298,9 +317,9 @@ defmodule ExAwsConfigurator.SQS do
   defp subscribe_statement(topic, queue) do
     Jason.encode!(
       %{
-        Sid: "AllowSubscribeFrom#{Queue.account_id(queue)}",
+        Sid: "AllowSubscribeFrom#{queue.account.id}",
         Effect: "Allow",
-        Principal: %{AWS: "arn:aws:iam::#{Queue.account_id(queue)}:root"},
+        Principal: %{AWS: "arn:aws:iam::#{queue.account.id}:root"},
         Action: ["sns:Subscribe", "sns:GetTopicAttributes"],
         Resource: Topic.arn(topic)
       },
