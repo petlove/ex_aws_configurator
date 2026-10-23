@@ -1,7 +1,7 @@
 defmodule ExAwsConfigurator.QueueTest do
   use ExAwsConfigurator.Case, async: true
 
-  alias ExAwsConfigurator.{Queue, QueueAttributes, QueueOptions, Topic}
+  alias ExAwsConfigurator.{Queue, QueueAttributes, QueueOptions}
 
   doctest Queue
 
