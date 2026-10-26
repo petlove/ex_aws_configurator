@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## [2.0.0](https://github.com/petlove/ex_aws_configurator/compare/v1.5.0...v2.0.0) (2026-10-26)
+
+### ⚠ BREAKING CHANGES
+
+* requires Elixir >= 1.15 and Erlang/OTP >= 26, and depends on hackney `~> 4.9`, ex_aws `~> 2.7` and ex_aws_sns `>= 2.3.5`; apps that can't meet these can stay on 1.x ([#29](https://github.com/petlove/ex_aws_configurator/issues/29)) ([c280975](https://github.com/petlove/ex_aws_configurator/commit/c280975))
+* `setup/0` updates existing queues and topics, overwriting attributes edited by hand in AWS, and returns `{:error, :subscriptions}` when a subscription can't be created (it used to ignore the error) ([#26](https://github.com/petlove/ex_aws_configurator/issues/26)) ([535f9cc](https://github.com/petlove/ex_aws_configurator/commit/535f9cc))
+* the app's IAM role needs `sqs:GetQueueUrl`, `sqs:SetQueueAttributes`, `sqs:TagQueue`, `sns:GetTopicAttributes` and `sns:SetTopicAttributes` ([#26](https://github.com/petlove/ex_aws_configurator/issues/26)) ([535f9cc](https://github.com/petlove/ex_aws_configurator/commit/535f9cc))
+* `SNS.publish/3` sends binaries as they are; only maps and lists are JSON encoded ([#26](https://github.com/petlove/ex_aws_configurator/issues/26)) ([535f9cc](https://github.com/petlove/ex_aws_configurator/commit/535f9cc))
+* the raw message delivery attribute of a subscription is set on the topic region ([#26](https://github.com/petlove/ex_aws_configurator/issues/26)) ([535f9cc](https://github.com/petlove/ex_aws_configurator/commit/535f9cc))
+* removed `ExAwsConfigurator.get_env/1`, `Queue.account_id/1`, `Topic.account_id/1` and `Config.default_account/0`; `Queue.arn/1`, `Queue.url/1` and `Topic.arn/1` use the struct's account and no longer fall back to the global `account_id` ([#27](https://github.com/petlove/ex_aws_configurator/issues/27)) ([3556a69](https://github.com/petlove/ex_aws_configurator/commit/3556a69))
+* `setup/0` validates the whole configuration before touching AWS: a queue subscribed to an unconfigured topic, an account without `id` or an invalid `arn` now raise ([#27](https://github.com/petlove/ex_aws_configurator/issues/27)) ([3556a69](https://github.com/petlove/ex_aws_configurator/commit/3556a69))
+* `SQS.create_queue/2` (and `setup/0`) returns the error when the dead letter queue can't be ensured, instead of creating the queue pointing to a missing one ([#27](https://github.com/petlove/ex_aws_configurator/issues/27)) ([3556a69](https://github.com/petlove/ex_aws_configurator/commit/3556a69))
+
+See "Upgrading from 1.x" in the README.
+
+### Features
+
+* support topics owned by external AWS accounts (`accounts`, `account:`), with `on_unauthorized: :warn` to only warn when the topic owner refuses the subscription ([#26](https://github.com/petlove/ex_aws_configurator/issues/26)) ([535f9cc](https://github.com/petlove/ex_aws_configurator/commit/535f9cc))
+* `SNS` and `SQS` functions accept the `%Topic{}`/`%Queue{}` struct as well as the configured name; the dead letter queue is a `%Queue{}` (`Queue.dead_letter_queue/1`) ([#27](https://github.com/petlove/ex_aws_configurator/issues/27)) ([3556a69](https://github.com/petlove/ex_aws_configurator/commit/3556a69))
+* telemetry spans for every public AWS operation (publish, send, create, subscribe, setup), ready-made metrics (`ExAwsConfigurator.Telemetry.metrics/1`) and pluggable trace propagation with an OpenTelemetry propagator ([#28](https://github.com/petlove/ex_aws_configurator/issues/28)) ([22d55ce](https://github.com/petlove/ex_aws_configurator/commit/22d55ce))
+
+### Bug Fixes
+
+* unpin hackney to 4.x (`~> 4.9`) and bump ex_aws_sns to 2.3.5, fixing CVE-2026-47074 ([#29](https://github.com/petlove/ex_aws_configurator/issues/29)) ([c280975](https://github.com/petlove/ex_aws_configurator/commit/c280975))
+
 ## [1.5.0](https://github.com/petlove/ex_aws_configurator/compare/v1.4.1...v1.5.0) (2026-08-12)
 
 ### Features
