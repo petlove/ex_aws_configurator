@@ -128,6 +128,8 @@ defmodule ExAwsConfigurator.SNSTest do
     end
 
     test "accepts the configured topic name" do
+      {:ok, _} = SNS.create_topic(:an_topic)
+
       assert {:ok, %{status_code: 200}} = SNS.publish(:an_topic, "message")
     end
 

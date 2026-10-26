@@ -180,6 +180,9 @@ defmodule ExAwsConfigurator.SQSTest do
     end
 
     test "accepts the configured names, in any combination", %{queue: queue, topic: topic} do
+      {:ok, _} = SNS.create_topic(:an_topic)
+      {:ok, _} = SQS.create_queue(:an_queue)
+
       assert {:ok, %{status_code: 200}} = SQS.subscribe(:an_queue, :an_topic)
       assert {:ok, %{status_code: 200}} = SQS.subscribe(queue, :an_topic)
       assert {:ok, %{status_code: 200}} = SQS.subscribe(:an_queue, topic)
