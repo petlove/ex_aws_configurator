@@ -3,7 +3,7 @@ defmodule ExAwsConfigurator.SNSTest do
 
   import ExUnit.CaptureLog
 
-  alias ExAwsConfigurator.{SNS, Topic}
+  alias ExAwsConfigurator.{HttpStub, SNS, Topic}
 
   doctest SNS
 
@@ -41,6 +41,38 @@ defmodule ExAwsConfigurator.SNSTest do
       assert capture_log(fn ->
                assert {:ok, %{status_code: 200}} = SNS.create_topic(topic)
              end) =~ "already exists on us-east-1, updating attributes"
+    end
+
+    test "updates the mutable attributes of an existing fifo topic" do
+      topic = build(:fifo_topic)
+
+      assert {:ok, %{status_code: 200}} = SNS.create_topic(topic)
+
+      assert capture_log(fn ->
+               assert {:ok, %{status_code: 200}} = SNS.create_topic(topic)
+             end) =~ "Topic #{Topic.full_name(topic)} updated successfully"
+    end
+
+    test "returns the error when the attributes cannot be updated" do
+      topic = build(:fifo_topic)
+
+      assert {:ok, %{status_code: 200}} = SNS.create_topic(topic)
+      HttpStub.fail("SetTopicAttributes")
+
+      assert capture_log(fn ->
+               assert {:error, {:http_error, 403, %{code: "AccessDenied"}}} =
+                        SNS.create_topic(topic)
+             end) =~ "Error updating topic #{Topic.full_name(topic)}"
+    end
+
+    test "returns the error when the topic cannot be fetched" do
+      topic = build(:topic)
+      HttpStub.fail("GetTopicAttributes")
+
+      assert capture_log(fn ->
+               assert {:error, {:http_error, 403, %{code: "AccessDenied"}}} =
+                        SNS.create_topic(topic)
+             end) =~ "Error fetching topic #{Topic.full_name(topic)}"
     end
 
     test "does not create an external topic" do
@@ -96,6 +128,8 @@ defmodule ExAwsConfigurator.SNSTest do
     end
 
     test "accepts the configured topic name" do
+      {:ok, _} = SNS.create_topic(:an_topic)
+
       assert {:ok, %{status_code: 200}} = SNS.publish(:an_topic, "message")
     end
 

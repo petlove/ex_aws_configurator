@@ -74,7 +74,8 @@ defmodule ExAwsConfigurator.PropagatorTest do
         "traceparent" => %{name: "traceparent", data_type: "String", string_value: "00-a"},
         "tracestate" => %{value: "vendor=1"},
         "count" => %{name: "count", data_type: "Number", string_value: "1"},
-        "blob" => %{name: "blob", data_type: "Binary", string_value: nil, binary_value: "x"}
+        "blob" => %{name: "blob", data_type: "Binary", string_value: nil, binary_value: "x"},
+        "raw" => %{binary_value: "x"}
       }
 
       assert Propagator.headers_from_message_attributes(attributes) |> Enum.sort() == [

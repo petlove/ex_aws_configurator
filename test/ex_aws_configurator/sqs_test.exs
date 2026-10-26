@@ -3,7 +3,7 @@ defmodule ExAwsConfigurator.SQSTest do
 
   import ExUnit.CaptureLog
 
-  alias ExAwsConfigurator.{Queue, QueueOptions, SNS, SQS}
+  alias ExAwsConfigurator.{HttpStub, Queue, QueueOptions, SNS, SQS}
 
   doctest SQS
 
@@ -72,6 +72,28 @@ defmodule ExAwsConfigurator.SQSTest do
       assert capture_log(fn ->
                assert {:ok, %{status_code: 200}} = SQS.create_queue(queue)
              end) =~ "Queue #{Queue.full_name(queue)} updated successfully"
+    end
+
+    test "returns the error when the attributes cannot be updated" do
+      queue = build(:queue, options: %QueueOptions{dead_letter_queue: false})
+
+      assert {:ok, %{status_code: 200}} = SQS.create_queue(queue)
+      HttpStub.fail("SetQueueAttributes")
+
+      assert capture_log(fn ->
+               assert {:error, {:http_error, 403, %{code: "AccessDenied"}}} =
+                        SQS.create_queue(queue)
+             end) =~ "Error updating queue #{Queue.full_name(queue)}"
+    end
+
+    test "returns the error when the queue cannot be fetched" do
+      queue = build(:queue)
+      HttpStub.fail("GetQueueUrl")
+
+      assert capture_log(fn ->
+               assert {:error, {:http_error, 403, %{code: "AccessDenied"}}} =
+                        SQS.create_queue(queue)
+             end) =~ "Error fetching queue"
     end
 
     test "tags the queue" do
@@ -151,7 +173,16 @@ defmodule ExAwsConfigurator.SQSTest do
       assert log =~ ~s("AWS": "arn:aws:iam::000000000000:root")
     end
 
+    test "returns any other subscribe error", %{queue: queue, topic: topic} do
+      HttpStub.fail("Subscribe")
+
+      assert {:error, {:http_error, 403, %{code: "AccessDenied"}}} = SQS.subscribe(queue, topic)
+    end
+
     test "accepts the configured names, in any combination", %{queue: queue, topic: topic} do
+      {:ok, _} = SNS.create_topic(:an_topic)
+      {:ok, _} = SQS.create_queue(:an_queue)
+
       assert {:ok, %{status_code: 200}} = SQS.subscribe(:an_queue, :an_topic)
       assert {:ok, %{status_code: 200}} = SQS.subscribe(queue, :an_topic)
       assert {:ok, %{status_code: 200}} = SQS.subscribe(:an_queue, topic)

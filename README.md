@@ -1,6 +1,5 @@
 # ExAwsConfigurator
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/marciotoze/ex_aws_configurator/Elixir%20CI)
 [![Coverage Status](https://coveralls.io/repos/github/marciotoze/ex_aws_configurator/badge.svg?branch=main)](https://coveralls.io/github/marciotoze/ex_aws_configurator?branch=main)
 [![hex.pm](https://img.shields.io/hexpm/v/ex_aws_configurator.svg)](https://hex.pm/packages/ex_aws)
 [![hex.pm](https://img.shields.io/hexpm/dt/ex_aws_configurator.svg)](https://hex.pm/packages/ex_aws)
@@ -9,6 +8,17 @@
 Simple json based configurator for AWS SNS/SQS services, use to setup your topics and queues or/and to help to handle topics and queues with prefix or environment based name.
 
 check our [documentation](https://hexdocs.pm/ex_aws_configurator/api-reference.html)
+
+## Requirements
+
+- Elixir >= 1.15
+- Erlang/OTP >= 26 (required by hackney 4)
+- `hackney` 4.x: if your app declares hackney directly, it must allow `~> 4.9`
+- `ex_aws` 2.x (>= 2.7) and `ex_aws_sns` 2.x (>= 2.3.5, which fixes CVE-2026-47074): if your app pins
+  older versions directly, relax those constraints
+
+Apps that can't meet these (older Elixir/OTP, or pinned to hackney 1.x, ex_aws < 2.7 or
+ex_aws_sns < 2.3.5) can stay on 1.x (`~> 1.5`).
 
 ## Installation
 

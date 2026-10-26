@@ -5,7 +5,7 @@ defmodule ExAwsConfigurator.MixProject do
     [
       app: :ex_aws_configurator,
       version: get_version(),
-      elixir: "~> 1.10",
+      elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
@@ -59,13 +59,13 @@ defmodule ExAwsConfigurator.MixProject do
     [
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: :dev, runtime: false},
-      {:ex_aws, "~> 2.0"},
-      {:ex_aws_sns, "~> 2.2"},
+      {:ex_aws, "~> 2.7"},
+      {:ex_aws_sns, "~> 2.3 and >= 2.3.5"},
       {:ex_aws_sqs, "~> 3.2"},
       {:ex_doc, "~> 0.23", only: :dev, runtime: false},
       {:ex_machina, "~> 2.5.0", only: [:dev, :test]},
       {:excoveralls, "~> 0.18", only: :test},
-      {:hackney, "~> 1.9"},
+      {:hackney, "~> 4.9"},
       {:jason, "~> 1.2"},
       {:opentelemetry_api, "~> 1.0", optional: true},
       {:sweet_xml, "~> 0.6"},

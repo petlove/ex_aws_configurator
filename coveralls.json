@@ -5,6 +5,9 @@
   },
   "skip_files": [
     "lib/ex_aws_configurator/exceptions.ex",
-    "test/support/factory.ex"
+    "test/support/factory.ex",
+    "test/support/config_factory.ex",
+    "test/support/queue_factory.ex",
+    "test/support/topic_factory.ex"
   ]
 }

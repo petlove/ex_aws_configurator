@@ -6,6 +6,11 @@ services:
       - "4566:4566"
     environment:
       - FLOCI_BASE_URL=http://localstack:4566
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
     network_mode: cloudbuild
     container_name: localstack
 networks:
