@@ -71,8 +71,7 @@ defmodule ExAwsConfigurator.MixProject do
       {:sweet_xml, "~> 0.6"},
       {:telemetry, "~> 0.4 or ~> 1.0"},
       {:telemetry_metrics, "~> 0.6 or ~> 1.0", optional: true},
-      {:vex, "~> 0.8.0"},
-      {:ssl_verify_fun, "~> 1.1.7", override: true}
+      {:vex, "~> 0.8.0"}
     ]
   end
 
