@@ -8,6 +8,11 @@ services:
       - "4566:4566"
     environment:
       - FLOCI_BASE_URL=http://localstack:4566
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
 
   lib:
     container_name: ex_aws_configurator_lib
