@@ -16,6 +16,7 @@ defmodule ExAwsConfigurator.Config do
   alias ExAwsConfigurator.{
     Account,
     NoResultsError,
+    Propagator,
     Queue,
     QueueAttributes,
     QueueOptions,
@@ -92,6 +93,13 @@ defmodule ExAwsConfigurator.Config do
         raise NoResultsError, type: :account, name: name
     end
   end
+
+  @doc """
+  The configured `ExAwsConfigurator.Propagator` (`propagator` key): a module, a
+  `{module, function, args}` or `nil` when trace context is not propagated.
+  """
+  @spec propagator() :: Propagator.t()
+  def propagator, do: Application.get_env(@app, :propagator)
 
   @doc "Build the `Topic` struct for the configured topic `name`."
   @spec get_topic(atom) :: Topic.t()

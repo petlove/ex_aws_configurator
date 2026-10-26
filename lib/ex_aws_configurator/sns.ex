@@ -10,7 +10,7 @@ defmodule ExAwsConfigurator.SNS do
   require Logger
 
   alias ExAws.SNS
-  alias ExAwsConfigurator.Topic
+  alias ExAwsConfigurator.{Propagator, Telemetry, Topic}
 
   @fifo_attributes [:content_based_deduplication, :fifo_topic]
   # Attributes that AWS allows changing after the topic exists.
@@ -22,6 +22,9 @@ defmodule ExAwsConfigurator.SNS do
   Topics that belong to an external account (see `ExAwsConfigurator.Account`) are never
   created: they are managed by their owner, so this function only logs and returns
   `{:ok, :external}`.
+
+  Emits the `[:ex_aws_configurator, :create_topic]` span (see
+  `ExAwsConfigurator.Telemetry`).
 
   raises `ExAwsConfigurator.NoResultsError` if the atom form is used and no
   configuration was found.
@@ -53,7 +56,14 @@ defmodule ExAwsConfigurator.SNS do
       #=> ** (ExAwsConfigurator.NoResultsError) the configuration for topic not_exist is not set
   """
   @spec create_topic(Topic.t() | atom) :: {:ok, term} | {:error, term}
-  def create_topic(%Topic{external: true} = topic) do
+  def create_topic(%Topic{} = topic) do
+    Telemetry.span(:create_topic, Telemetry.metadata(topic), fn -> ensure_topic(topic) end)
+  end
+
+  def create_topic(topic_name) when is_atom(topic_name),
+    do: topic_name |> ExAwsConfigurator.get_topic() |> create_topic()
+
+  defp ensure_topic(%Topic{external: true} = topic) do
     Logger.info(
       "Skipping topic #{Topic.arn(topic)}: it belongs to the external account " <>
         "#{inspect(topic.account.name)} and is managed by its owner"
@@ -62,16 +72,17 @@ defmodule ExAwsConfigurator.SNS do
     {:ok, :external}
   end
 
-  def create_topic(%Topic{} = topic), do: create_or_update_topic(topic)
-
-  def create_topic(topic_name) when is_atom(topic_name),
-    do: topic_name |> ExAwsConfigurator.get_topic() |> create_topic()
+  defp ensure_topic(topic), do: create_or_update_topic(topic)
 
   @doc """
   Publish a message to a topic.
 
   Maps and lists are JSON encoded, binaries are sent as they are. `opts` are passed to
   `ExAws.SNS.publish/2` (for example `message_attributes`, `message_group_id`).
+
+  When a `propagator` is configured (see `ExAwsConfigurator.Propagator`) the trace
+  context is added to the `message_attributes`. Emits the
+  `[:ex_aws_configurator, :publish]` span (see `ExAwsConfigurator.Telemetry`).
   """
   @spec publish(Topic.t() | atom, map | list | binary, keyword) :: {:ok, term} | {:error, term}
   def publish(topic, message, opts \\ [])
@@ -79,10 +90,17 @@ defmodule ExAwsConfigurator.SNS do
   def publish(%Topic{} = topic, message, opts) do
     Logger.info("Publish message to #{Topic.full_name(topic)}")
 
-    message
-    |> encode()
-    |> SNS.publish(Keyword.put(opts, :topic_arn, Topic.arn(topic)))
-    |> ExAws.request(region: topic.region)
+    opts =
+      opts
+      |> Propagator.inject_message_attributes(:sns)
+      |> Keyword.put(:topic_arn, Topic.arn(topic))
+
+    Telemetry.span(:publish, Telemetry.metadata(topic), fn ->
+      message
+      |> encode()
+      |> SNS.publish(opts)
+      |> ExAws.request(region: topic.region)
+    end)
   end
 
   def publish(topic_name, message, opts) when is_atom(topic_name),

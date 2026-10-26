@@ -67,7 +67,10 @@ defmodule ExAwsConfigurator.MixProject do
       {:excoveralls, "~> 0.18", only: :test},
       {:hackney, "~> 1.9"},
       {:jason, "~> 1.2"},
+      {:opentelemetry_api, "~> 1.0", optional: true},
       {:sweet_xml, "~> 0.6"},
+      {:telemetry, "~> 0.4 or ~> 1.0"},
+      {:telemetry_metrics, "~> 0.6 or ~> 1.0", optional: true},
       {:vex, "~> 0.8.0"},
       {:ssl_verify_fun, "~> 1.1.7", override: true}
     ]
