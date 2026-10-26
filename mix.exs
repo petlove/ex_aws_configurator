@@ -5,7 +5,7 @@ defmodule ExAwsConfigurator.MixProject do
     [
       app: :ex_aws_configurator,
       version: get_version(),
-      elixir: "~> 1.10",
+      elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
