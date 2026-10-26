@@ -7,7 +7,9 @@ defmodule ExAwsConfigurator.HttpStub do
       looking such a resource up (`GetQueueUrl`/`GetTopicAttributes`) says it does not exist,
       even if a previous run left it behind in the local backend;
     * an external account that refuses `sns:Subscribe`: subscribing to a topic owned by
-      `external_account_id/0` gets a 403 `AuthorizationError`.
+      `external_account_id/0` gets a 403 `AuthorizationError`;
+    * any other failure: after `fail/1`, the given actions get a 403 `AccessDenied` in the
+      calling process (ExAws runs the http client in the caller, so async tests are safe).
   """
 
   @behaviour ExAws.Request.HttpClient
@@ -19,11 +21,19 @@ defmodule ExAwsConfigurator.HttpStub do
 
   def external_account_id, do: @external_account_id
 
+  @doc "Make every `action` (`\"GetQueueUrl\"`, ...) requested by the calling process fail."
+  def fail(action), do: Process.put({__MODULE__, :failures}, [action | failures()])
+
+  defp failures, do: Process.get({__MODULE__, :failures}, [])
+
   @impl true
   def request(method, url, body, headers, http_opts) do
-    params = decode(body)
+    params = URI.decode_query(body)
 
     cond do
+      params["Action"] in failures() ->
+        {:ok, %{status_code: 403, headers: [], body: access_denied_error(params)}}
+
       invalid_name?(params) ->
         {:ok, %{status_code: 400, headers: [], body: invalid_name_error(params)}}
 
@@ -38,9 +48,6 @@ defmodule ExAwsConfigurator.HttpStub do
         Hackney.request(method, url, body, headers, http_opts)
     end
   end
-
-  defp decode(body) when is_binary(body), do: URI.decode_query(body)
-  defp decode(_), do: %{}
 
   defp invalid_name?(%{"Action" => "CreateQueue", "QueueName" => name}),
     do: not Regex.match?(@valid_name, name)
@@ -94,6 +101,9 @@ defmodule ExAwsConfigurator.HttpStub do
         "SNS:Subscribe on resource: arn:aws:sns:sa-east-1:#{@external_account_id}:topic"
     )
   end
+
+  defp access_denied_error(%{"Action" => action}),
+    do: error_response("AccessDenied", "Not authorized to perform: #{action}")
 
   defp error_response(code, message) do
     """
