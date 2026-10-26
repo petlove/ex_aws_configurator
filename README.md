@@ -14,7 +14,7 @@ check our [documentation](https://hexdocs.pm/ex_aws_configurator/api-reference.h
 - Elixir >= 1.15
 - Erlang/OTP >= 26 (required by hackney 4)
 - `hackney` 4.x: if your app declares hackney directly, it must allow `~> 4.9`
-- `ex_aws` >= 2.7 and `ex_aws_sns` >= 2.3.5 (2.3.5 fixes CVE-2026-47074): if your app pins
+- `ex_aws` 2.x (>= 2.7) and `ex_aws_sns` 2.x (>= 2.3.5, which fixes CVE-2026-47074): if your app pins
   older versions directly, relax those constraints
 
 Apps that can't meet these (older Elixir/OTP, or pinned to hackney 1.x, ex_aws < 2.7 or
