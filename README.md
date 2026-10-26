@@ -10,6 +10,14 @@ Simple json based configurator for AWS SNS/SQS services, use to setup your topic
 
 check our [documentation](https://hexdocs.pm/ex_aws_configurator/api-reference.html)
 
+## Requirements
+
+- Elixir >= 1.15
+- Erlang/OTP >= 26 (required by hackney 4)
+- `hackney` 4.x: if your app declares hackney directly, it must allow `~> 4.9`
+
+Apps on older Elixir/OTP versions can stay on 1.x (`~> 1.5`).
+
 ## Installation
 
 The package can be installed by adding jason to your list of dependencies in mix.exs:
