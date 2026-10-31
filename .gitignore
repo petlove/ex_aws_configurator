@@ -24,3 +24,6 @@ ex_aws_configurator-*.tar
 
 /priv/plts/*.plt
 /priv/plts/*.plt.hash
+
+# Written by Hex in installed deps; read by mix.exs for the version, never committed.
+/hex_metadata.config
